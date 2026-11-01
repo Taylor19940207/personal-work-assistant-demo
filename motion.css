@@ -1,0 +1,84 @@
+/* Quiet spatial feedback. Motion never delays an action or changes its layout. */
+:root {
+  --motion-fast: 130ms;
+  --motion-enter: 200ms;
+  --motion-layout: 240ms;
+  --motion-ease: cubic-bezier(.22, .7, .24, 1);
+}
+
+:where(button, a, input, select, textarea, summary) {
+  transition: color var(--motion-fast) ease, background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+:where(.d-action, .docs-main-actions button, .dialog-close, [data-doc-close], [data-w-close], [data-dialog-close]) {
+  transition: color var(--motion-fast) ease, background-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease, translate var(--motion-fast) var(--motion-ease);
+}
+:where(.d-action, .docs-main-actions button, .dialog-close, [data-doc-close], [data-w-close], [data-dialog-close]):active:not(:disabled) {
+  translate: 0 1px;
+}
+.d-work-link strong, .d-map-open strong, .d-context-link strong, .d-map-goal strong {
+  transition: color var(--motion-fast) ease;
+}
+dialog :is(input, textarea, select):focus-visible, summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.d-map-open, .d-map-goal > button, .d-work-link, .docs-row, .d-context-link {
+  transition: color var(--motion-fast) ease, background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+@media (hover: hover) {
+  .d-map-open:hover, .d-map-goal > button:hover { background: rgba(131, 232, 211, .035); }
+  .d-map-goal > button:hover strong { color: var(--signal); }
+}
+
+/* Native discrete transitions retain the top layer while visually closing,
+   without delaying close(), Escape, focus restoration or form submission. */
+dialog {
+  opacity: 0;
+  translate: 0 8px;
+  transition: opacity 120ms ease, translate 120ms var(--motion-ease),
+    display 120ms allow-discrete, overlay 120ms allow-discrete;
+}
+dialog[open] {
+  opacity: 1;
+  translate: 0 0;
+  transition-duration: var(--motion-enter);
+}
+dialog::backdrop {
+  opacity: 0;
+  transition: opacity 120ms ease, display 120ms allow-discrete,
+    overlay 120ms allow-discrete;
+}
+dialog[open]::backdrop { opacity: 1; transition-duration: var(--motion-enter); }
+dialog.docs-library { translate: 0 10px; }
+dialog.docs-library[open] { translate: 0 0; }
+@starting-style {
+  dialog[open] { opacity: 0; translate: 0 8px; }
+  dialog.docs-library[open] { opacity: 0; translate: 0 10px; }
+  dialog[open]::backdrop { opacity: 0; }
+}
+
+/* Optional history/metadata opens in place rather than pushing content at once. */
+@supports (interpolate-size: allow-keywords) and selector(details::details-content) {
+  details { interpolate-size: allow-keywords; }
+  details::details-content {
+    block-size: 0;
+    opacity: 0;
+    overflow: clip;
+    transition: block-size var(--motion-enter) var(--motion-ease),
+      opacity 150ms ease, content-visibility var(--motion-enter) allow-discrete;
+  }
+  details[open]::details-content { block-size: auto; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after, dialog::backdrop {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  details::details-content { transition: none !important; }
+  dialog, dialog[open], dialog.docs-library, dialog.docs-library[open] { translate: none; }
+}

@@ -1,0 +1,56 @@
+.w-overview-actions { display: flex; gap: 8px; margin-top: 14px; }
+.w-overview-actions .d-action { min-height: 34px; font-size: 12px; }
+.w-brand { border: 0; padding: 6px 0; background: transparent; color: var(--paper); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.w-brand span { color: var(--muted); margin-left: 5px; }
+.w-project-tools { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.w-project-tools .d-action { min-height: 30px; padding: 5px 9px; font-size: 11px; }
+.w-project-tools span { color: var(--warning); font-size: 12px; }
+.w-dialog { width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line-strong); border-radius: 12px; color: var(--paper); background: var(--canvas-2); box-shadow: 0 24px 100px #0008; }
+.w-dialog::backdrop { background: #020709b8; backdrop-filter: blur(4px); }
+.w-dialog form { padding: 28px; }
+.w-dialog header { display: flex; justify-content: space-between; gap: 16px; }
+.w-dialog header small { font: 10px var(--mono); color: var(--muted); }
+.w-dialog h2 { margin: 8px 0 0; font-size: 23px; }
+.w-dialog h2:focus { outline: none; }
+.w-dialog h3 { font-size: 16px; }
+.w-dialog button:not(.primary-action):not(.d-work-link) { border: 0; border-radius: 6px; padding: 10px 12px; color: var(--paper-2); background: var(--control-quiet); cursor: pointer; }
+.w-dialog button[aria-pressed="true"] { color: var(--signal) !important; background: var(--signal-dark) !important; }
+.w-dialog button:disabled { opacity: .5; cursor: wait !important; }
+.w-dialog header > button { align-self: flex-start; font-size: 20px; }
+.w-dialog footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.w-dialog footer button { min-height: 44px; font-size: 13px; }
+.w-manager-tools, .w-file-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.w-project-list { display: grid; max-height: min(36dvh, 370px); overflow: auto; }
+.w-project-row { display: flex; align-items: center; gap: 14px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.w-project-row > .d-action { flex: 0 0 auto; }
+.w-project-row strong { font-size: 15px; }
+.w-backup { margin-top: 8px; padding-top: 10px; }
+.w-lifecycle { border-top: 1px solid var(--line); padding-top: 16px; }
+.w-import-list { margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.9; color: var(--paper-2); }
+.w-file-actions { margin-top: 8px; }
+.w-drop-zone { width: 100%; min-height: 88px; margin: 8px 0 24px; flex-direction: row; justify-content: space-between; gap: 20px; padding: 20px 24px; }
+.w-evidence-library { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+.w-evidence-library .evidence-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 24px; min-width: 0; padding: 20px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; }
+.w-file-identity { min-width: 0; }
+.w-file-identity strong { display: block; overflow-wrap: anywhere; font-size: 14px; }
+.w-file-identity small { display: block; font-size: 12px; line-height: 1.7; color: var(--muted); margin-top: 7px; }
+.w-evidence-library .evidence-item > details, .w-evidence-library .evidence-item > small { grid-column: 1 / -1; margin-top: 0; }
+.w-file-actions a { padding: 8px 0; color: var(--signal); font-size: 12px; text-underline-offset: 3px; }
+.w-file-actions span { font-size: 12px; color: var(--paper-2); }
+.w-file-actions .d-action { font-size: 11px; padding: 7px 10px; }
+.w-version { border-top: 1px solid var(--line); padding: 12px 0; }
+.w-version span { font-size: 12px; color: var(--paper-2); overflow-wrap: anywhere; }
+.w-version small { display: block; color: var(--muted); margin-top: 5px; }
+.evidence-item > small { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.evidence-item details { margin-top: 12px; font-size: 12px; color: var(--paper-2); }
+.evidence-item summary { cursor: pointer; padding: 8px 0; }
+.w-empty-map { padding: 100px 50px; color: var(--paper-2); }
+.w-empty-map .d-action { margin-right: 10px; }
+.w-load-error { padding: 20px; color: var(--warning); background: var(--ink); position: absolute; inset: 0 0 auto; z-index: 30; }
+@media (max-width: 540px) {
+  .w-files-surface .surface-heading { flex-direction: column; align-items: stretch; gap: 14px; }
+  .w-files-surface .surface-actions { flex-direction: row; justify-content: flex-start; }
+  .w-files-surface .surface-actions button { min-height: 44px; white-space: nowrap; }
+  .w-file-actions .d-action, .w-file-actions a { min-height: 44px; }
+}
+@media (max-width: 719px) { .w-dialog form { padding: 20px; } .w-dialog h2 { font-size: 21px; } .w-brand { font-size: 12px; } .w-overview-actions { margin-top: 14px; } .workspace-heading { min-height: 132px; } .w-project-tools { margin-top: 8px; } .w-manager-tools .d-action { font-size: 12px; } .w-drop-zone { flex-direction: column; gap: 8px; padding: 20px 16px; } .w-evidence-library .evidence-item { grid-template-columns: minmax(0, 1fr); } }
