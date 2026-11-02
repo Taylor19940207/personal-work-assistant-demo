@@ -873,7 +873,7 @@
   window.removeEventListener("popstate", oldRoute);
   window.addEventListener("popstate", routeFromLocation);
   document.querySelector(".map-legend").innerHTML = `<span>交付目標</span><span>→ 主要成果</span><span>→ 子成果</span><span><i class="legend-mark current"></i>進行中的工作</span>`;
-  document.querySelector(".map-note p").textContent = "滾輪縮放，拖曳空白處移動。點選成果進入操作，＋ 展開子工作。連線表示所屬關係，不代表先後順序。";
+  document.querySelector(".map-note p").textContent = "雙指或滾輪縮放，拖曳畫布移動。點選成果進入操作，＋ 展開子工作。連線表示所屬關係，不代表先後順序。";
   saveWorkspaceData(); routeFromLocation();
   // Explicit model API for regression checks; all mutations still go through the same functions.
   window.deliveryModel = { normalize, children, descendants, summary, blockers, transition, hasPath, record };

@@ -2859,26 +2859,94 @@ scheduleForm.addEventListener("submit", event => {
   showToast(scope === "project" ? "專案期限已更新" : "工作期限已更新");
 });
 
-mapViewport.addEventListener("pointerdown", event => {
-  if (event.target.closest("button")) return;
-  uiState.dragging = true;
-  uiState.dragOrigin = { pointerX: event.clientX, pointerY: event.clientY, x: uiState.x, y: uiState.y };
-  mapViewport.classList.add("is-panning");
-  mapViewport.setPointerCapture(event.pointerId);
-});
-
-mapViewport.addEventListener("pointermove", event => {
-  if (!uiState.dragging) return;
-  uiState.x = uiState.dragOrigin.x + event.clientX - uiState.dragOrigin.pointerX;
-  uiState.y = uiState.dragOrigin.y + event.clientY - uiState.dragOrigin.pointerY;
-  applyTransform();
-});
-
-mapViewport.addEventListener("pointerup", event => {
-  uiState.dragging = false;
-  mapViewport.classList.remove("is-panning");
-  if (mapViewport.hasPointerCapture(event.pointerId)) mapViewport.releasePointerCapture(event.pointerId);
-});
+// The canvas owns its gestures; the surrounding reading/forms keep native zoom.
+(() => {
+  const pointers = new Map();
+  let pan = null, pinch = null, moved = false, suppressUntil = 0;
+  const point = event => ({ x: event.clientX, y: event.clientY });
+  function pair() {
+    const [a, b] = [...pointers.values()];
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, distance: Math.hypot(a.x - b.x, a.y - b.y) };
+  }
+  function rebase() {
+    pan = pinch = null;
+    if (pointers.size >= 2) {
+      const center = pair(), rect = mapViewport.getBoundingClientRect();
+      pinch = { distance: Math.max(1, center.distance), scale: uiState.scale,
+        worldX: (center.x - rect.left - uiState.x) / uiState.scale,
+        worldY: (center.y - rect.top - uiState.y) / uiState.scale };
+      moved = true;
+    } else if (pointers.size === 1) {
+      const pointer = pointers.values().next().value;
+      pan = { ...pointer, mapX: uiState.x, mapY: uiState.y };
+    }
+    uiState.dragging = pointers.size > 0 && moved;
+    mapViewport.classList.toggle("is-panning", uiState.dragging);
+  }
+  function reset() {
+    const captured = [...pointers.entries()];
+    if (moved) suppressUntil = performance.now() + 700;
+    pointers.clear(); pan = pinch = null; moved = false;
+    uiState.dragging = false; uiState.dragOrigin = null;
+    mapViewport.classList.remove("is-panning");
+    captured.forEach(([id, pointer]) => {
+      if (pointer.target.hasPointerCapture?.(id)) pointer.target.releasePointerCapture(id);
+    });
+  }
+  mapViewport.addEventListener("pointerdown", event => {
+    if (event.pointerType === "mouse" && (event.button !== 0 || event.target.closest("button, a, input, select, textarea"))) return;
+    if (!pointers.size) { moved = false; suppressUntil = 0; }
+    // Capturing on the original element preserves ordinary taps on node buttons.
+    const target = event.target;
+    pointers.set(event.pointerId, { ...point(event), target });
+    if (event.isTrusted) target.setPointerCapture?.(event.pointerId);
+    rebase();
+  });
+  mapViewport.addEventListener("pointermove", event => {
+    const pointer = pointers.get(event.pointerId);
+    if (!pointer) return;
+    Object.assign(pointer, point(event));
+    if (pinch && pointers.size >= 2) {
+      const center = pair(), rect = mapViewport.getBoundingClientRect();
+      uiState.scale = Math.min(1.6, Math.max(.55, pinch.scale * center.distance / pinch.distance));
+      uiState.x = center.x - rect.left - pinch.worldX * uiState.scale;
+      uiState.y = center.y - rect.top - pinch.worldY * uiState.scale;
+    } else if (pan) {
+      const dx = event.clientX - pan.x, dy = event.clientY - pan.y;
+      if (!moved && Math.hypot(dx, dy) < (event.pointerType === "mouse" ? 2 : 6)) return;
+      moved = true;
+      uiState.x = pan.mapX + dx; uiState.y = pan.mapY + dy;
+    } else return;
+    if (event.cancelable) event.preventDefault();
+    uiState.dragging = true; mapViewport.classList.add("is-panning");
+    applyTransform();
+  });
+  function end(event) {
+    const pointer = pointers.get(event.pointerId);
+    if (!pointer) return;
+    pointers.delete(event.pointerId);
+    if (moved) suppressUntil = performance.now() + 700;
+    if (pointer.target.hasPointerCapture?.(event.pointerId)) pointer.target.releasePointerCapture(event.pointerId);
+    rebase();
+  }
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach(type => mapViewport.addEventListener(type, end));
+  mapViewport.addEventListener("click", event => {
+    if (event.detail > 0 && (moved && pointers.size || performance.now() < suppressUntil)) {
+      event.preventDefault(); event.stopImmediatePropagation();
+    }
+  }, true);
+  // Safari can dispatch GestureEvents in addition to pointer events. Cancel its
+  // default page zoom, while pointer events above remain the single camera owner.
+  ["gesturestart", "gesturechange", "gestureend"].forEach(type => {
+    mapViewport.addEventListener(type, event => event.preventDefault(), { passive: false });
+  });
+  mapViewport.addEventListener("touchmove", event => {
+    if (event.touches.length > 1 && event.cancelable) event.preventDefault();
+  }, { passive: false });
+  window.addEventListener("blur", reset);
+  window.addEventListener("resize", reset);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) reset(); });
+})();
 
 mapViewport.addEventListener("wheel", event => {
   event.preventDefault();

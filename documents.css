@@ -69,3 +69,8 @@
 .docs-form [hidden] { display: none; }
 
 .docs-history-filter .d-action[aria-pressed="true"] { color: var(--signal); background: var(--signal-dark); }
+
+/* Keep touch form focus from triggering Safari's small-input auto zoom. */
+@media (pointer: coarse) {
+  body :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select) { font-size: 16px; }
+}

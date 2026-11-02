@@ -223,7 +223,7 @@ button:focus-visible,
   background-size: 40px 40px;
 }
 
-.map-viewport { position: absolute; inset: 0; overflow: hidden; cursor: grab; }
+.map-viewport { position: absolute; inset: 0; overflow: hidden; cursor: grab; touch-action: none; overscroll-behavior: contain; user-select: none; -webkit-user-select: none; }
 .map-viewport.is-panning { cursor: grabbing; }
 
 .map-stage {
