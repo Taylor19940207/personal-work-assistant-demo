@@ -8,7 +8,7 @@
   bar.innerHTML = `<button type="button" class="m-back" data-action="leave-project">← 全局</button><select class="m-case-select" aria-label="查看案件"></select><button type="button" data-action="open-command">搜尋</button><button type="button" data-doc-action="library">文件</button><button type="button" data-m-action="add">＋新增</button><button type="button" data-m-action="menu">更多</button>`;
   document.querySelector('.command-bar').append(bar);
   const views = document.createElement('nav'); views.className = 'm-views'; views.setAttribute('aria-label', '全局檢視');
-  views.innerHTML = ['tree:路徑', 'canvas:拓樸', 'list:紀錄'].map(item => { const [id, name] = item.split(':'); return `<button type="button" data-m-view="${id}" aria-pressed="false">${name}</button>`; }).join('');
+  views.innerHTML = ['tree:案件', 'canvas:拓樸', 'list:紀錄'].map(item => { const [id, name] = item.split(':'); return `<button type="button" data-m-view="${id}" aria-pressed="false">${name}</button>`; }).join('');
   workspace.prepend(views);
   const controls = document.createElement('div'); controls.className = 'm-map-controls';
   controls.innerHTML = `<button type="button" data-action="fit">歸位</button><details><summary>工具</summary><div><button type="button" data-action="zoom-in">＋ 放大</button><button type="button" data-action="zoom-out">− 縮小</button><button type="button" data-m-action="help">操作說明</button></div></details>`;
@@ -20,7 +20,10 @@
     menu.innerHTML = `<header><h2 id="m-menu-title" tabindex="-1" autofocus>${title}</h2><button type="button" data-m-close>關閉</button></header><div class="m-menu-body">${content}</div>`;
     menu.showModal(); menu.querySelector('h2').focus();
   }
-  menu.addEventListener('close', () => { if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true }); });
+  menu.addEventListener('close', () => {
+    // A close event may arrive after the next sheet has already opened.
+    if (!menu.open && !document.querySelector('dialog[open]') && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+  });
   // Close this sheet before an existing handler opens its contextual form.
   menu.addEventListener('click', event => { if (event.target.closest('button')) menu.close(); }, true);
   const item = (title, attr, description = '') => `<button type="button" ${attr}><strong>${title}</strong>${description ? `<small>${description}</small>` : ''}</button>`;
@@ -99,7 +102,7 @@
       item('操作說明', 'data-m-action="help"'));
     if (action === 'help') {
       controls.querySelector('details').open = false;
-      showMenu('操作說明', '<p>路徑：展開案件，查看各項工作的狀態；點工作進入操作。</p><p>拓樸：單指拖曳、雙指縮放。點成果進入工作，＋展開子成果；連線表示所屬關係。</p><p>歸位：重新定位全局。進出工作時會保留原來的查看位置。</p><p>紀錄：依案件查看歷史。工作狀態可用狀態選單調整，文件可直接在工作內加入。</p>');
+      showMenu('操作說明', '<p>案件：展開案件，查看各項工作的狀態；點工作進入操作。</p><p>拓樸：單指拖曳、雙指縮放。點成果進入工作，＋展開子成果；連線表示所屬關係。</p><p>歸位：重新定位全局。進出工作時會保留原來的查看位置。</p><p>紀錄：依案件查看歷史。工作狀態可用狀態選單調整，文件可直接在工作內加入。</p>');
     }
     if (action === 'add') {
       if (uiState.surface !== 'project') return workspaceManager.newProjectDialog();
@@ -116,6 +119,52 @@
     // The original handlers run first; reflect focus/issue filters afterwards.
     if (event.target.closest('[data-mode], [data-action="reset"]')) sync();
   });
+  // Native modal dialogs make the background inert, but do not lock page scrolling.
+  // Keep the page at its exact position throughout nested/successive dialogs.
+  let lockedScroll = null, stickyPositions = [];
+  const root = document.documentElement;
+  function lockPage() {
+    if (!compact.matches || lockedScroll) return;
+    lockedScroll = { x: scrollX, y: scrollY };
+    stickyPositions = [...document.querySelectorAll('.m-views, .project-tabs')]
+      .filter(el => el.getClientRects().length && getComputedStyle(el).position === 'sticky')
+      .map(el => ({ el, top: el.getBoundingClientRect().top, translate: el.style.translate }));
+    root.style.setProperty('--m-page-top', `${-lockedScroll.y}px`);
+    root.classList.add('m-modal-open');
+    stickyPositions.forEach(({ el, top }) => { el.style.translate = `0 ${top - el.getBoundingClientRect().top}px`; });
+  }
+  function syncModalLock() {
+    if (compact.matches && document.querySelector('dialog[open]')) return lockPage();
+    if (!lockedScroll) return;
+    const position = lockedScroll; lockedScroll = null;
+    root.classList.remove('m-modal-open'); root.style.removeProperty('--m-page-top');
+    stickyPositions.forEach(({ el, translate }) => { el.style.translate = translate; }); stickyPositions = [];
+    window.scrollTo({ left: position.x, top: position.y, behavior: 'instant' });
+  }
+  const nativeShowModal = HTMLDialogElement.prototype.showModal;
+  HTMLDialogElement.prototype.showModal = function(...args) {
+    lockPage();
+    try { return nativeShowModal.apply(this, args); }
+    finally { syncModalLock(); }
+  };
+  new MutationObserver(syncModalLock).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'], childList: true });
+  // Also contain gestures on older mobile browsers without overscroll containment.
+  let touchY = null;
+  document.addEventListener('touchstart', event => { touchY = event.touches.length === 1 ? event.touches[0].clientY : null; }, { passive: true });
+  document.addEventListener('touchmove', event => {
+    if (!lockedScroll || touchY === null || event.touches.length !== 1) return;
+    const y = event.touches[0].clientY, delta = touchY - y; touchY = y;
+    const dialog = event.target.closest?.('dialog[open]');
+    if (dialog) {
+      for (let el = event.target; el && dialog.contains(el); el = el.parentElement) {
+        const style = getComputedStyle(el);
+        if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 1 &&
+          ((delta > 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1) || (delta < 0 && el.scrollTop > 0))) return;
+      }
+    }
+    if (event.cancelable) event.preventDefault();
+  }, { passive: false });
+  compact.addEventListener('change', syncModalLock);
   function visualSize() {
     const viewport = window.visualViewport;
     document.documentElement.style.setProperty('--m-visible-height', `${viewport?.height || innerHeight}px`);

@@ -17,6 +17,10 @@
     return animation;
   }
   function enter(element, direction = 0) {
+    if (matchMedia("(pointer: coarse)").matches) {
+      animate(element, [{ opacity: .45 }, { opacity: 1 }]);
+      return;
+    }
     animate(element, [
       { opacity: .45, translate: direction ? `${direction * 8}px 0` : "0 6px" },
       { opacity: 1, translate: "0 0" }
