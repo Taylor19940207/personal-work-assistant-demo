@@ -1000,8 +1000,26 @@ function applyTransform() {
   zoomValue.textContent = zoomValue.value;
 }
 
+let mapCameraReady = false;
+let mapCameraSize = null;
+let portfolioScroll = { page: 0, list: 0 };
+function resizeMapCamera() {
+  const rect = mapViewport.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  if (!mapCameraReady) return fitMap();
+  if (mapCameraSize) {
+    uiState.x += (rect.width - mapCameraSize.width) / 2;
+    uiState.y += (rect.height - mapCameraSize.height) / 2;
+  }
+  mapCameraSize = { width: rect.width, height: rect.height };
+  applyTransform();
+}
+
 function fitMap() {
   const rect = mapViewport.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  mapCameraReady = true;
+  mapCameraSize = { width: rect.width, height: rect.height };
   const scaleX = (rect.width - 30) / topologyLayout.width;
   const scaleY = (rect.height - 20) / topologyLayout.height;
   uiState.scale = Math.min(1, Math.max(.55, Math.min(scaleX, scaleY)));
@@ -1035,8 +1053,9 @@ function setView(view, { persistPreference = true } = {}) {
     if (isMobile) uiState.mobilePreferredView = view;
     else uiState.preferredView = view;
   }
-  const showMap = view === "map" && !isMobile;
-  const showMobileOverview = view === "map" && isMobile;
+  const presentation = window.mobileWorkspace?.presentation();
+  const showMap = view === "map" && (presentation ? presentation === "canvas" : !isMobile);
+  const showMobileOverview = view === "map" && (presentation ? presentation === "tree" : isMobile);
   const showList = view === "list";
   mapView.hidden = !showMap;
   mobileOverview.hidden = !showMobileOverview;
@@ -1053,7 +1072,8 @@ function setView(view, { persistPreference = true } = {}) {
   });
   if (showList) renderList();
   if (showMobileOverview) renderMobileOverview();
-  if (showMap) requestAnimationFrame(fitMap);
+  window.mobileWorkspace?.sync();
+  if (showMap) requestAnimationFrame(() => { if (!mapView.hidden && uiState.surface === "portfolio") resizeMapCamera(); });
 }
 
 function renderList() {
@@ -1509,7 +1529,8 @@ function createNextTaskFromRecord(data, { title, sourceIssueId = "", sourceDecis
 function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRecordId = "") {
   const project = getProject(projectId);
   if (!project) return;
-  const isSameProjectDepth = uiState.surface === "project" && uiState.projectId === projectId;
+  const isAlreadyProjectDepth = uiState.surface === "project";
+  if (uiState.surface === "portfolio") portfolioScroll = { page: window.scrollY, list: listView.scrollTop };
   const allowedTabs = new Set(["overview", "board", "records", "files", "activity"]);
   if (!allowedTabs.has(tab)) tab = "overview";
   uiState.surface = "project";
@@ -1534,7 +1555,7 @@ function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRec
   if (pushRoute) {
     const state = { surface: "project", projectId, returnToPortfolio: true };
     const route = `#project=${projectId}&tab=${tab}${recordRoute}`;
-    if (isSameProjectDepth) history.replaceState(state, "", route);
+    if (isAlreadyProjectDepth) history.replaceState(state, "", route);
     else history.pushState(state, "", route);
   }
   requestAnimationFrame(() => {
@@ -1556,6 +1577,7 @@ function showPortfolioSurface() {
   renderMobileOverview();
   setActiveMode(uiState.mode === "issues" ? "issues" : uiState.focusProjectId ? "focus" : "portfolio");
   setView(window.innerWidth < 720 ? uiState.mobilePreferredView : uiState.preferredView, { persistPreference: false });
+  requestAnimationFrame(() => { if (uiState.surface === "portfolio") { window.scrollTo({ top: portfolioScroll.page, behavior: "instant" }); listView.scrollTop = portfolioScroll.list; } });
 }
 
 function leaveProjectRoom() {

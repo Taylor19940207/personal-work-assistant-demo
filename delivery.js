@@ -260,7 +260,7 @@
   function portfolioList() {
     return `<div class="d-portfolio-list"><p class="d-help">以交付目標查看所有工作。展開子成果，或點選工作進入操作。</p>${getPortfolioProjects().map(project => {
       const data = workspaceData[project.id];
-      return `<section class="d-portfolio-project" style="--project-color:${project.color}"><button type="button" class="d-project-link" data-open-project="${e(project.id)}"><small>${e(project.name)} · ${e(getProjectSnapshot(project).state)}</small><strong>${e(data.goal.title || project.name)}</strong><span>交付 ${dateLabel(data.deadlineDate)} ↗</span></button>${signals(data)}${children(data).map(task => workRow(project, task)).join("") || `<p class="d-help">尚未建立主要成果</p>`}</section>`;
+      return `<section class="d-portfolio-project" data-mobile-case="${e(project.id)}" style="--project-color:${project.color}"><button type="button" class="d-project-link" data-open-project="${e(project.id)}"><small>${e(project.name)} · ${e(getProjectSnapshot(project).state)}</small><strong>${e(data.goal.title || project.name)}</strong><span>交付 ${dateLabel(data.deadlineDate)} ↗</span></button>${signals(data)}${children(data).map(task => workRow(project, task)).join("") || `<p class="d-help">尚未建立主要成果</p>`}</section>`;
     }).join("")}</div>`;
   }
   renderMobileOverview = function() { mobileOverview.innerHTML = portfolioList(); };
