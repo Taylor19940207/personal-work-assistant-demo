@@ -172,3 +172,11 @@
   .d-portfolio-list { padding: 10px 16px 40px; }
   .d-portfolio-project { margin-bottom: 32px; }
 }
+
+.d-home { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: clamp(16px, 3vw, 48px); }
+.d-home h2 { font-size: 1.2rem; margin: 1em 0 .5em; }
+.d-home h2 small { color: var(--muted); font: 12px var(--mono); }
+.d-home-row { display: grid; gap: 6px; width: 100%; min-height: 52px; text-align: left; color: var(--paper); border: 0; border-bottom: 1px solid var(--line); padding: 12px 4px; background: transparent; cursor: pointer; }
+.d-home-row small { color: var(--paper-2); }
+.d-home-row:is(:hover,:focus-visible) strong { color: var(--signal); }
+.d-dialog [data-correction]:not([hidden]) { display: grid; gap: 12px; }

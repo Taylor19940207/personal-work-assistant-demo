@@ -126,13 +126,13 @@
   };
   evidenceInput.addEventListener("cancel", () => { uploadContext = null; evidenceTarget = { kind: "project", id: null }; });
   let uploadQueue = Promise.resolve();
-  function storeFiles(files, context = {}) {
+  function storeFiles(files, context = {}, onStored) {
     const selected = Array.from(files), target = { ...context };
-    const result = uploadQueue.then(() => storeFilesNow(selected, target));
+    const result = uploadQueue.then(() => storeFilesNow(selected, target, onStored));
     uploadQueue = result.catch(() => {});
     return result;
   }
-  async function storeFilesNow(files, context) {
+  async function storeFilesNow(files, context, onStored) {
     const selected = Array.from(files), projectId = context.projectId;
     const data = workspaceData[projectId];
     if (projectId && !data) throw new Error("案件已不存在");
@@ -160,6 +160,7 @@
     try {
       results = documentModel.ingest(records, context);
       if (data) results.forEach(file => activity(data, `保存文件：${file.name}`, "文件庫保存內容，案件引用同一份文件", context.kind === "task" ? context.id : context.kind === "issue" ? data.issues.find(issue => issue.id === context.id)?.taskId || "" : ""));
+      onStored?.(results);
       persist();
     } catch (error) {
       install(before);

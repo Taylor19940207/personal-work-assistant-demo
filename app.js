@@ -231,8 +231,8 @@ const uiState = {
   x: 20,
   y: 0,
   view: "map",
-  preferredView: "map",
-  mobilePreferredView: "map",
+  preferredView: location.hash ? "map" : "mine",
+  mobilePreferredView: location.hash ? "map" : "mine",
   mobileExpandedProjectId: null,
   mode: "portfolio",
   surface: "portfolio",
@@ -1056,7 +1056,7 @@ function setView(view, { persistPreference = true } = {}) {
   const presentation = window.mobileWorkspace?.presentation();
   const showMap = view === "map" && (presentation ? presentation === "canvas" : !isMobile);
   const showMobileOverview = view === "map" && (presentation ? presentation === "tree" : isMobile);
-  const showList = view === "list";
+  const showList = view === "list" || view === "mine";
   mapView.hidden = !showMap;
   mobileOverview.hidden = !showMobileOverview;
   listView.hidden = !showList;
@@ -1070,6 +1070,7 @@ function setView(view, { persistPreference = true } = {}) {
     if (button.dataset.view === "map") button.textContent = isMobile ? "全局路徑" : "拓撲圖";
     if (button.dataset.view === "list") button.textContent = isMobile ? "完整列表" : "記錄列表";
   });
+  document.querySelector("#workspace-title").textContent = view === "mine" ? "我的工作" : "所有案子，現在在哪裡";
   if (showList) renderList();
   if (showMobileOverview) renderMobileOverview();
   window.mobileWorkspace?.sync();
@@ -2524,6 +2525,7 @@ document.addEventListener("click", event => {
       if (modeButton.dataset.mode === "issues") setProjectTab("records");
       return;
     }
+    if (uiState.view === "mine") setView("map");
     if (modeButton.dataset.mode === "portfolio") resetMap();
     if (modeButton.dataset.mode === "focus") openProjectPicker("focus");
     if (modeButton.dataset.mode === "issues") showIssuesOnly();

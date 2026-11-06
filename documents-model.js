@@ -116,7 +116,7 @@
           const file = data.files.find(file => file.id === ref.fileId);
           const doc = file && find(file.documentId);
           if (!doc || !doc.versions.some(version => version.id === ref.versionId)) continue;
-          const base = { projectId, taskId: task.id, requestId: request.id, roundId: round.id, versionId: ref.versionId, person: round.person || request.person || "", channel: "工作協作紀錄", actor: "未記錄", recordedAt: request.direction === "inbound" ? round.repliedAt || "" : round.recordedAt || "" };
+          const base = { projectId, taskId: task.id, requestId: request.id, roundId: round.id, versionId: ref.versionId, person: round.person || request.person || "", channel: "工作協作紀錄", actor: round.actor || "未記錄", recordedAt: round.recordedAt || (request.direction === "inbound" ? round.repliedAt || "" : round.recordedAt || "") };
           const inbound = request.direction === "inbound";
           const derived = (type, values) => {
             if (type === "receipt_confirmed") {
