@@ -189,3 +189,16 @@
 .d-work-options[open] summary::before { content: "▾"; }
 .d-work-options > div { display: grid; gap: 12px; }
 #d-dialog-title:focus { outline: none; }
+.rl-list { border-block-start: 1px solid var(--line); padding: 6px 0; }
+.rl-list > summary { min-height:44px; cursor:pointer; color:var(--paper); }
+.rl-list > summary strong { font-size:15px; margin-right:12px; }
+.rl-list > summary span { color:var(--signal); }
+.rl-item { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; width:100%; min-height:44px; padding:10px 4px; background:transparent; color:var(--paper); border:0; border-bottom:1px solid var(--line); text-align:left; cursor:pointer; }
+.rl-item small { grid-column:1/-1; color:var(--muted); }
+.rl-item [data-state=revise] { color:var(--warning); }
+.rl-item [data-state=ready] { color:var(--signal); }
+.rl-list > .d-actions { margin:10px 0; }
+.rl-list .rl-ready { margin: 5px 0; }
+.rl-ready > summary { min-height:44px; display:flex; align-items:center; gap:7px; }
+.rl-ready > summary::before { content:"▸"; }
+.rl-ready[open] > summary::before { content:"▾"; }

@@ -184,7 +184,7 @@
   deleteEvidence = function(fileId) {
     const projectId = uiState.projectId, data = workspaceData[projectId], file = data?.files.find(item => item.id === fileId);
     if (!file) return;
-    if (data.tasks.some(task => task.requests.some(request => request.rounds.some(round => round.artifacts?.some(ref => ref.fileId === fileId))))) return showToast("歷次提交仍引用這份資料，請保留案件關聯；工作關聯可另外取消");
+    if (data.tasks.some(task => workUsesFile(task, fileId))) return showToast("清單、工作結果或提交紀錄仍使用這份資料");
     try {
       const position = data.files.indexOf(file), docId = file.documentId;
       model.mutate(() => { data.files.splice(position, 1); model.event(model.find(docId), "unlinked", { projectId, note: "移出案件，文件與歷史仍保留" }); });

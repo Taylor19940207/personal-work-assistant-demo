@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>清單範例｜個人工作台 - 專案拓撲</title>
+    <link rel="stylesheet" href="./styles.css?v=20261107-list-1" />
+    <link rel="stylesheet" href="./delivery.css?v=20261107-list-1" />
+    <link rel="stylesheet" href="./workspace.css?v=20261107-list-1" />
+    <link rel="stylesheet" href="./documents.css?v=20261107-list-1" />
+    <link rel="stylesheet" href="./motion.css?v=20261107-list-1" />
+    <link rel="stylesheet" href="./mobile.css?v=20261107-list-1" />
+    <meta name="robots" content="noindex, nofollow" />
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">跳到專案地圖</a>
+
+    <div class="app-frame">
+      <header class="command-bar">
+        <div class="identity">
+          <span class="identity-index mono">PA</span>
+          <strong>個人工作台</strong>
+          <span class="sample-flag">範例資料</span>
+        </div>
+
+        <div class="view-switch" aria-label="主要檢視">
+          <button class="view-switch__button" type="button" data-view="mine">我的工作</button>
+          <button class="view-switch__button is-active" type="button" data-view="map" aria-pressed="true">拓撲圖</button>
+          <button class="view-switch__button" type="button" data-view="list" aria-pressed="false">記錄列表</button>
+        </div>
+
+        <div class="command-actions">
+          <button class="command-trigger" type="button" data-action="open-command"><span>搜尋與指令</span><kbd>⌘ K</kbd></button>
+          <button class="text-action portfolio-only map-only" type="button" data-action="fit">完整顯示</button>
+          <button class="primary-action portfolio-only" type="button" data-action="new-event">新增進度</button>
+        </div>
+      </header>
+
+      <nav class="control-spine" aria-label="工作區導覽">
+        <button class="spine-button is-active" type="button" aria-pressed="true" data-mode="portfolio"><span>全</span><small>全局</small></button>
+        <button class="spine-button" type="button" aria-pressed="false" data-mode="focus"><span>案</span><small>聚焦</small></button>
+        <button class="spine-button" type="button" aria-pressed="false" data-mode="issues"><span>題</span><small>問題</small></button>
+        <button class="spine-button" type="button" data-action="open-attention"><span>今</span><small>優先</small></button>
+        <div class="spine-rule" aria-hidden="true"></div>
+        <button class="spine-button" type="button" data-action="reset"><span>原</span><small>歸位</small></button>
+        <div class="local-indicator"><span aria-hidden="true"></span><small>本機</small></div>
+      </nav>
+
+      <main id="workspace" class="workspace" tabindex="-1">
+        <section class="workspace-heading" aria-labelledby="workspace-title">
+          <div>
+            <p id="portfolio-period" class="workspace-path mono">PORTFOLIO</p>
+            <h1 id="workspace-title">所有案子，現在在哪裡</h1>
+          </div>
+          <div class="workspace-summary" aria-label="工作組合摘要">
+            <span><b id="portfolio-project-count">4</b> 個進行中</span>
+            <span><b id="portfolio-issue-count" class="text-danger">2</b> 個未解問題</span>
+            <span><b id="portfolio-near-count" class="text-warning">0</b> 項日期提醒</span>
+          </div>
+        </section>
+
+        <section id="map-view" class="map-region" aria-label="專案拓撲圖">
+          <div class="map-legend" aria-label="節點圖例">
+            <span><i class="legend-mark event"></i>工作事件</span>
+            <span><i class="legend-mark task"></i>工作任務</span>
+            <span><i class="legend-mark decision"></i>決策</span>
+            <span><i class="legend-mark issue"></i>問題</span>
+            <span><i class="legend-mark current"></i>目前位置</span>
+          </div>
+
+          <div id="map-viewport" class="map-viewport">
+            <div id="map-stage" class="map-stage" aria-live="polite"></div>
+          </div>
+
+          <div class="map-tools" aria-label="地圖控制">
+            <button type="button" data-action="zoom-out" aria-label="縮小">−</button>
+            <output id="zoom-value" class="mono" aria-live="polite">85%</output>
+            <button type="button" data-action="zoom-in" aria-label="放大">＋</button>
+            <button type="button" data-action="fit">適合畫面</button>
+          </div>
+
+          <div class="map-note">
+            <span class="mono">操作</span>
+            <p>滾輪縮放，拖曳空白處移動畫布。選擇節點可查看當時做了什麼、遇到什麼問題，以及下一個依賴。</p>
+          </div>
+        </section>
+
+        <section id="mobile-overview" class="mobile-overview" aria-label="手機全局專案狀態" hidden></section>
+
+        <section id="list-view" class="list-region" aria-label="可及性記錄列表" hidden></section>
+
+        <section id="project-room" class="project-room" aria-label="專案工作區" hidden>
+          <header id="project-room-header" class="project-room-header"></header>
+          <nav id="project-tabs" class="project-tabs" aria-label="專案工作區檢視"></nav>
+          <div id="project-room-content" class="project-room-content"></div>
+        </section>
+      </main>
+
+      <aside id="node-inspector" class="node-inspector" aria-label="節點詳細資料" aria-hidden="true" inert>
+        <button class="inspector-close" type="button" data-action="close-inspector">關閉</button>
+        <div id="inspector-content"></div>
+      </aside>
+    </div>
+
+    <dialog id="capture-dialog" class="capture-dialog" aria-labelledby="capture-dialog-title" aria-describedby="capture-intro">
+      <form id="capture-form" method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <p id="capture-kicker" class="mono">CAPTURE / PROJECT</p>
+            <h2 id="capture-dialog-title">新增專案紀錄</h2>
+          </div>
+          <button class="dialog-close" type="button" data-action="close-capture" aria-label="關閉">關閉</button>
+        </div>
+
+        <input id="capture-kind" name="kind" type="hidden" value="task" />
+        <p id="capture-intro" class="capture-intro">只填寫這次需要的內容。</p>
+        <div id="capture-context" class="capture-context" hidden></div>
+
+        <fieldset id="capture-issue-field" class="capture-link-field" hidden>
+          <legend>這個決策回應哪個問題（必填）</legend>
+          <label class="visually-hidden" for="capture-issue">選擇既有問題</label>
+          <select id="capture-issue" name="issueId" aria-describedby="capture-issue-help"></select>
+          <p id="capture-issue-help" class="field-help">先選問題，再記錄針對它做出的決定；之後會顯示在同一條處理脈絡裡。</p>
+        </fieldset>
+
+        <fieldset id="capture-issue-source-field" class="capture-link-field" hidden>
+          <legend>問題發生在哪裡</legend>
+          <label for="capture-issue-source">關聯對象
+            <select id="capture-issue-source" name="issueSource" aria-describedby="capture-issue-source-help"></select>
+          </label>
+          <label for="capture-issue-impact">影響範圍
+            <select id="capture-issue-impact" name="issueImpact">
+              <option value="local">只影響這項工作</option>
+              <option value="project">影響整個專案</option>
+            </select>
+          </label>
+          <p id="capture-issue-source-help" class="field-help">從工作卡回報時會自動帶入該工作；從問題中心新增時可自行選擇。</p>
+        </fieldset>
+
+        <div id="capture-title-field" class="capture-field">
+          <label id="capture-title-label" for="capture-title">標題</label>
+          <input id="capture-title" name="title" required maxlength="80" autocomplete="off" />
+        </div>
+
+        <div class="capture-field">
+          <label id="capture-detail-label" for="capture-detail">內容</label>
+          <textarea id="capture-detail" name="detail" rows="5" maxlength="500" aria-describedby="capture-detail-help"></textarea>
+          <p id="capture-detail-help" class="field-help"></p>
+        </div>
+
+        <div id="capture-followup-field" class="capture-field" hidden>
+          <label id="capture-followup-label" for="capture-followup">下一步</label>
+          <textarea id="capture-followup" name="followup" rows="3" maxlength="360" aria-describedby="capture-followup-help"></textarea>
+          <p id="capture-followup-help" class="field-help"></p>
+        </div>
+
+        <div id="capture-next-task-field" class="capture-toggle-field" hidden>
+          <label for="capture-create-task"><input id="capture-create-task" name="createTask" type="checkbox" />把上面的下一步建立成工作</label>
+          <p class="field-help">建立後會進入待處理，並保留它來自哪個問題、決策或工作。</p>
+        </div>
+
+        <fieldset id="capture-task-fields" class="schedule-fields">
+          <legend>工作時間</legend>
+          <div class="schedule-grid">
+            <label for="capture-due-date">期限日期
+              <input id="capture-due-date" name="dueDate" type="date" />
+            </label>
+            <label for="capture-due-time">期限時間
+              <input id="capture-due-time" name="dueTime" type="time" />
+            </label>
+            <label for="capture-priority">優先級
+              <select id="capture-priority" name="priority">
+                <option value="normal">一般</option>
+                <option value="medium">中</option>
+                <option value="high">高</option>
+              </select>
+            </label>
+          </div>
+          <p class="field-help">日期可以留空；設定後會自動計算剩餘時間，並在臨期或逾期時進入優先處理。</p>
+        </fieldset>
+
+        <div class="dialog-actions">
+          <button type="button" data-action="close-capture">取消</button>
+          <button id="capture-submit" class="primary-action" type="submit">儲存紀錄</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="work-flow-dialog" class="capture-dialog" aria-labelledby="work-flow-title">
+      <form id="work-flow-form">
+        <div class="dialog-heading"><div><p class="mono">WORK / FLOW</p><h2 id="work-flow-title">工作關係與確認</h2></div><button type="button" class="dialog-close" data-action="close-work-flow">關閉</button></div>
+        <input type="hidden" name="taskId" />
+        <p id="work-flow-context" class="field-help"></p>
+        <details id="work-dependency-section" class="work-flow-section"><summary>前置工作 <span id="work-dependency-count"></span></summary><p class="field-help">全部完成後才能開始、送確認或完成這項工作。</p><div id="work-dependencies"></div></details>
+        <div class="work-review-grid">
+          <label class="work-flow-field" for="review-person">確認對象<input id="review-person" name="reviewPerson" maxlength="100" placeholder="客戶窗口、法務或自己" /></label>
+          <label class="work-flow-field" for="review-date">預計回覆日 <small>選填</small><input id="review-date" name="reviewDate" type="date" /></label>
+        </div>
+        <label class="work-flow-field" for="review-request">需要確認什麼<textarea id="review-request" name="reviewRequest" rows="3" maxlength="2000" placeholder="交付內容、檢查項目或需要對方決定的事項"></textarea></label>
+        <label class="work-flow-field" for="review-reply">最新回覆／確認結果 <small>選填</small><textarea id="review-reply" name="reviewReply" rows="2" maxlength="2000" placeholder="收到回覆後，在這裡更新"></textarea></label>
+        <p id="work-flow-error" class="text-danger" role="alert"></p>
+        <div class="dialog-actions"><button type="button" data-action="close-work-flow">取消</button><button class="primary-action" type="submit">儲存工作流程</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="schedule-dialog" class="capture-dialog schedule-dialog" aria-labelledby="schedule-title">
+      <form id="schedule-form" method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <p class="mono">TIME / DEADLINE</p>
+            <h2 id="schedule-title">調整期限</h2>
+          </div>
+          <button class="dialog-close" type="button" data-action="close-schedule" aria-label="關閉期限設定">關閉</button>
+        </div>
+
+        <input name="scope" type="hidden" />
+        <input name="itemId" type="hidden" />
+
+        <div class="schedule-grid">
+          <label for="schedule-date">期限日期
+            <input id="schedule-date" name="dueDate" type="date" />
+          </label>
+          <label for="schedule-time">期限時間
+            <input id="schedule-time" name="dueTime" type="time" />
+          </label>
+        </div>
+
+        <div id="schedule-project-fields">
+          <label for="schedule-label">期限名稱</label>
+          <input id="schedule-label" name="deadlineLabel" maxlength="40" autocomplete="off" placeholder="例如：客戶檢視、最終交付" />
+        </div>
+
+        <div id="schedule-task-fields">
+          <label for="schedule-priority">優先級</label>
+          <select id="schedule-priority" name="priority">
+            <option value="normal">一般</option>
+            <option value="medium">中</option>
+            <option value="high">高</option>
+          </select>
+        </div>
+
+        <p class="field-help">留空日期代表尚未排定。時間為選填；沒有時間時，以當日結束前為期限。</p>
+
+        <div class="dialog-actions">
+          <button type="button" data-action="close-schedule">取消</button>
+          <button class="primary-action" type="submit">儲存期限</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="link-dialog" class="capture-dialog link-dialog" aria-labelledby="link-dialog-title" aria-describedby="link-dialog-intro">
+      <form id="link-form" method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <p class="mono">REFERENCE / LINK</p>
+            <h2 id="link-dialog-title">新增外部連結</h2>
+          </div>
+          <button class="dialog-close" type="button" data-action="close-link" aria-label="關閉新增連結">關閉</button>
+        </div>
+
+        <p id="link-dialog-intro" class="capture-intro">保存法規、研究資料或相關網頁，並保留它屬於哪個專案、工作或問題。</p>
+        <div id="link-context" class="capture-context"></div>
+
+        <div class="capture-field">
+          <label for="link-url">網址（必填）</label>
+          <input id="link-url" name="url" type="text" required inputmode="url" autocomplete="url" placeholder="https://law.moj.gov.tw/..." aria-describedby="link-url-help" />
+          <p id="link-url-help" class="field-help">只接受 http 或 https 網址；開啟時會使用新的分頁。</p>
+        </div>
+
+        <div class="capture-field">
+          <label for="link-title">顯示名稱（選填）</label>
+          <input id="link-title" name="title" maxlength="120" autocomplete="off" placeholder="例如：個人資料保護法第 8 條" />
+        </div>
+
+        <div class="capture-field">
+          <label for="link-note">備註（選填）</label>
+          <textarea id="link-note" name="note" rows="3" maxlength="360" placeholder="記下適用條文、查閱原因或需要再次確認的地方"></textarea>
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" data-action="close-link">取消</button>
+          <button class="primary-action" type="submit">保存連結</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="command-dialog" class="command-dialog" aria-labelledby="command-title">
+      <div class="command-dialog-shell">
+        <div class="dialog-heading command-dialog-heading">
+          <div>
+            <p class="mono">SEARCH / ACTION</p>
+            <h2 id="command-title">搜尋與指令</h2>
+          </div>
+          <button class="dialog-close" type="button" data-action="close-command" aria-label="關閉搜尋與指令">關閉</button>
+        </div>
+        <label class="visually-hidden" for="command-input">搜尋專案、節點、工作、問題或資料</label>
+        <input id="command-input" class="command-input" type="search" autocomplete="off" placeholder="輸入專案、工作、問題或資料…" />
+        <div id="command-results" class="command-results" aria-live="polite"></div>
+        <div class="command-hints"><span><kbd>↑</kbd><kbd>↓</kbd> 選擇</span><span><kbd>Enter</kbd> 開啟</span><span><kbd>Esc</kbd> 關閉</span></div>
+      </div>
+    </dialog>
+
+    <input id="evidence-input" class="visually-hidden" type="file" multiple />
+    <input id="backup-input" class="visually-hidden" type="file" accept="application/json,.json" />
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="text/plain" data-example-src="./app.js?v=20261107-list-1"></script>
+    <script type="text/plain" data-example-src="./documents-model.js?v=20261107-list-1"></script>
+    <script type="text/plain" data-example-src="./requirement-lists.js?v=20261107-list-1"></script>
+    <script type="text/plain" data-example-src="./delivery.js?v=20261107-list-1"></script>
+    <script type="text/plain" data-example-src="./workspace.js?v=20261107-list-1"></script>
+    <script type="text/plain" data-example-src="./documents-ui.js?v=20261107-list-1"></script>
+    <script type="text/plain" data-example-src="./motion.js?v=20261107-list-1"></script>
+    <script type="text/plain" data-example-src="./mobile.js?v=20261107-list-1"></script>
+  <script src="./examples.js?v=20261107-list-1"></script></body>
+</html>

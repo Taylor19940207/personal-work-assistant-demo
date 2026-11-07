@@ -4,7 +4,7 @@
   const e = escapeHTML;
   const uid = prefix => `${prefix}-${crypto.randomUUID()}`;
   const clone = value => JSON.parse(JSON.stringify(value));
-  const undoKey = "personal-assistant-before-restore-v6";
+  const undoKey = window.exampleWorkspace ? "personal-assistant-examples-before-restore" : "personal-assistant-before-restore-v6";
   const snapshot = () => documentModel.snapshot();
   const activity = (data, title, detail = "", taskId = "") => {
     const entry = { id: uid("activity"), kind: "note", title, detail, taskId, date: localISODate(), at: new Date().toISOString() };
@@ -64,7 +64,7 @@
   let databasePromise;
   function database() {
     if (!databasePromise) databasePromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open("personal-assistant-attachments", 1);
+      const request = indexedDB.open(window.exampleWorkspace ? "personal-assistant-example-attachments" : "personal-assistant-attachments", 1);
       request.onupgradeneeded = () => request.result.createObjectStore("bodies", { keyPath: "id" });
       request.onsuccess = () => { request.result.onversionchange = () => request.result.close(); resolve(request.result); };
       request.onerror = () => { databasePromise = null; reject(new Error("無法開啟本機附件儲存空間")); };
@@ -209,8 +209,8 @@
   function renderFile(file, data, compact = false) {
     const version = documentModel.current(file);
     const consumers = (file.workIds || []).map(id => data.tasks.find(task => task.id === id)?.title).filter(Boolean);
-    const submitted = data.tasks.some(task => task.requests.some(request => request.rounds.some(round => round.artifacts?.some(ref => ref.fileId === file.id))));
-    return `<article class="${compact ? "d-evidence" : "evidence-item"}" data-record-target="${e(file.id)}"><div class="w-file-identity"><button type="button" class="d-context-link" data-doc-action="select" data-document="${e(file.documentId)}"><strong>${e(file.name)}</strong><small>文件與履歷 ↗</small></button><small>${e(file.size || "來源資料")} · ${file.versions.length} 個版本 · ${consumers.length ? e(consumers.join("、")) : e(evidenceContextLabel(data, file))}</small></div><div class="w-file-actions">${fileActions(file, version)}<button type="button" class="d-action" data-workspace-action="file-version" data-file="${e(file.id)}">更新文件</button><button type="button" class="d-action" data-doc-action="provide" data-document="${e(file.documentId)}">提供文件</button>${!compact && !submitted ? `<button type="button" class="d-action" data-delete-evidence="${e(file.id)}">移出此案件</button>` : ""}</div>${file.versions.length > 1 ? `<details><summary>查看 ${file.versions.length} 個版本</summary>${file.versions.map((item, index) => `<div class="w-version"><span>v${index + 1} · ${e(item.name)}<small>${e(item.date || "")} ${e(item.note || "")}</small></span><div class="w-file-actions">${fileActions(file, item)}</div></div>`).join("")}</details>` : ""}${submitted && !compact ? `<small>已被送出紀錄引用，保留版本供追溯</small>` : ""}</article>`;
+    const submitted = data.tasks.some(task => workUsesFile(task, file.id));
+    return `<article class="${compact ? "d-evidence" : "evidence-item"}" data-record-target="${e(file.id)}"><div class="w-file-identity"><button type="button" class="d-context-link" data-doc-action="select" data-document="${e(file.documentId)}"><strong>${e(file.name)}</strong><small>文件與履歷 ↗</small></button><small>${e(file.size || "來源資料")} · ${file.versions.length} 個版本 · ${consumers.length ? e(consumers.join("、")) : e(evidenceContextLabel(data, file))}</small></div><div class="w-file-actions">${fileActions(file, version)}<button type="button" class="d-action" data-workspace-action="file-version" data-file="${e(file.id)}">更新文件</button><button type="button" class="d-action" data-doc-action="provide" data-document="${e(file.documentId)}">提供文件</button>${!compact && !submitted ? `<button type="button" class="d-action" data-delete-evidence="${e(file.id)}">移出此案件</button>` : ""}</div>${file.versions.length > 1 ? `<details><summary>查看 ${file.versions.length} 個版本</summary>${file.versions.map((item, index) => `<div class="w-version"><span>v${index + 1} · ${e(item.name)}<small>${e(item.date || "")} ${e(item.note || "")}</small></span><div class="w-file-actions">${fileActions(file, item)}</div></div>`).join("")}</details>` : ""}${submitted && !compact ? `<small>清單、工作結果或提交紀錄仍使用這份資料</small>` : ""}</article>`;
   }
   renderEvidenceItem = (file, data) => renderFile(file, data);
   renderProjectFiles = function(data) {
@@ -410,9 +410,10 @@
   let managerTab = "active";
   function manager() {
     const archived = managerTab === "archived";
+    const samplePage = location.protocol === "file:" && !location.pathname.includes("/dist/") ? "./dist/examples.html" : "./examples.html";
     const projects = topologyProjects.filter(project => (workspaceData[project.id].lifecycle === "archived") === archived);
     display("案件與備份", "管理案件、封存與完整備份。封存會移出日常總覽，仍可查看與還原。",
-      `<div class="w-manager-tools">${button("＋ 建立案件", "new-project")}${button(`目前案件 ${getPortfolioProjects().length}`, "active", `aria-pressed="${!archived}"`)}${button(`已封存 ${topologyProjects.length - getPortfolioProjects().length}`, "archived", `aria-pressed="${archived}"`)}</div><label>搜尋案件<input type="search" data-project-search placeholder="案件名稱或交付目標" autocomplete="off"></label><div class="w-project-list">${projects.map(project => `<div class="w-project-row" data-search="${e(`${project.name} ${workspaceData[project.id].goal.title || ""}`.toLowerCase())}"><button type="button" class="d-work-link" data-workspace-action="open-project" data-project="${e(project.id)}"><strong>${e(project.name)}</strong><small>${e(workspaceData[project.id].goal.title || project.name)} · ${e(getProjectSnapshot(project).state)}</small></button>${button(archived ? "還原" : "管理", archived ? "restore-project" : "manage-project", `data-project="${e(project.id)}"`)}</div>`).join("") || `<p class="d-help">${archived ? "沒有已封存案件" : "目前沒有未封存案件，可建立新案或從封存區還原。"}</p>`}<p class="d-help" data-project-search-empty hidden>沒有符合的案件，試試其他名稱。</p></div><section class="w-backup"><h3>完整備份</h3><p class="d-help">包含文件庫（含未選用的文件）、跨案件關聯、歷次版本、履歷及已保存的檔案本體。法規與雲端文件保留來源網址；舊索引不會憑空變成檔案。</p><div class="d-actions">${button("匯出完整備份", "export")}${button("從備份匯入", "import")}${localStorage.getItem(undoKey) ? button("復原上次還原", "undo-import") : ""}</div><p class="d-help">資料只在這個瀏覽器／裝置。清除瀏覽器資料前，請先匯出備份。</p></section>`);
+      `<div class="w-manager-tools">${button("＋ 建立案件", "new-project")}${window.exampleWorkspace ? '<a class="d-action" href="./index.html">回我的工作區</a>' : '<a class="d-action" href="'+samplePage+'" target="_blank" rel="noopener">開啟清單範例 ↗</a>'}${button(`目前案件 ${getPortfolioProjects().length}`, "active", `aria-pressed="${!archived}"`)}${button(`已封存 ${topologyProjects.length - getPortfolioProjects().length}`, "archived", `aria-pressed="${archived}"`)}</div><label>搜尋案件<input type="search" data-project-search placeholder="案件名稱或交付目標" autocomplete="off"></label><div class="w-project-list">${projects.map(project => `<div class="w-project-row" data-search="${e(`${project.name} ${workspaceData[project.id].goal.title || ""}`.toLowerCase())}"><button type="button" class="d-work-link" data-workspace-action="open-project" data-project="${e(project.id)}"><strong>${e(project.name)}</strong><small>${e(workspaceData[project.id].goal.title || project.name)} · ${e(getProjectSnapshot(project).state)}</small></button>${button(archived ? "還原" : "管理", archived ? "restore-project" : "manage-project", `data-project="${e(project.id)}"`)}</div>`).join("") || `<p class="d-help">${archived ? "沒有已封存案件" : "目前沒有未封存案件，可建立新案或從封存區還原。"}</p>`}<p class="d-help" data-project-search-empty hidden>沒有符合的案件，試試其他名稱。</p></div><section class="w-backup"><h3>完整備份</h3><p class="d-help">包含文件庫（含未選用的文件）、跨案件關聯、歷次版本、履歷及已保存的檔案本體。法規與雲端文件保留來源網址；舊索引不會憑空變成檔案。</p><div class="d-actions">${button("匯出完整備份", "export")}${button("從備份匯入", "import")}${localStorage.getItem(undoKey) ? button("復原上次還原", "undo-import") : ""}</div><p class="d-help">資料只在這個瀏覽器／裝置。清除瀏覽器資料前，請先匯出備份。</p></section>`);
   }
   dialog.addEventListener("input", event => {
     if (!event.target.matches("[data-project-search]")) return;
@@ -494,9 +495,9 @@
         section.innerHTML = `<div class="d-section-title"><h3>資料與證明</h3><div class="d-actions"><button type="button" class="primary-action" data-workspace-action="upload-task" data-work="${e(work.id)}">加入文件</button><button type="button" class="d-action" data-doc-action="choose" data-work="${e(work.id)}">選用已有文件</button><button type="button" class="d-action" data-workspace-action="link-task" data-work="${e(work.id)}">加入連結</button></div></div><button type="button" class="evidence-drop w-drop-zone" data-workspace-action="upload-task" data-work="${e(work.id)}" data-evidence-kind="task" data-evidence-id="${e(work.id)}"><strong>拖入文件，直接加入這項工作</strong><span>自動關聯「${e(work.title)}」，文件庫同步保存，不必另外指定。</span></button>${files.map(file => `${renderFile(file, data, true)}<button type="button" class="d-action" data-delivery-action="unlink" data-work="${e(work.id)}" data-item="${e(file.id)}">取消此工作關聯</button>`).join("") || `<p>加入文件後就會顯示在這裡；已有的謄本或憑證可直接選用。</p>`}`;
       }
       // Submission history opens its pinned version, not today's current version.
-      projectRoomContent.querySelectorAll(".d-request").forEach((card, requestIndex) => {
+      projectRoomContent.querySelectorAll(".d-request").forEach(card => {
         card.querySelectorAll(".d-round").forEach((round, roundIndex) => {
-          const refs = work.requests[requestIndex]?.rounds[roundIndex]?.artifacts || [];
+          const refs = work.requests.find(req=>req.id===card.dataset.requestId)?.rounds[roundIndex]?.artifacts || [];
           const controls = refs.map(ref => { const file = data.files.find(item => item.id === ref.fileId); const version = file?.versions.find(item => item.id === ref.versionId); return file && version?.blobId ? `<div class="w-file-actions"><span>${e(version.name)} · ${e(ref.versionLabel)}</span>${fileActions(file, version)}</div>` : ""; }).join("");
           if (controls) round.insertAdjacentHTML("beforeend", controls);
         });
@@ -521,7 +522,7 @@
   const controls = document.createElement("div"); controls.className = "w-overview-actions";
   controls.innerHTML = `${button("＋ 新增案件", "new-project")}${button("案件與備份", "manager")}`;
   workspaceHeading.querySelector("div")?.append(controls);
-  document.querySelector(".sample-flag").textContent = "本機工作區";
+  document.querySelector(".sample-flag").textContent = window.exampleWorkspace ? "範例工作區" : "本機工作區";
   const brand = document.querySelector(".identity strong");
   brand.outerHTML = `<button type="button" class="w-brand" data-workspace-action="manager" aria-label="個人工作台：案件與備份">個人工作台 <span>⌄</span></button>`;
   if (workspaceLoadError) {

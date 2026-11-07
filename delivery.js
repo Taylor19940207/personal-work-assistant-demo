@@ -377,6 +377,7 @@
     return `<article class="project-surface d-work-detail" data-record-target="${e(task.id)}">
       ${breadcrumb(data, task)}
       <header class="d-work-heading"><div>${badge(task)}<h2>${e(task.title)}</h2><p>${e(assignmentOf(task)?.person || task.owner || "未指定協作者")} · 工作期限 ${dateLabel(task.due)}</p></div><div class="d-actions">${task.status === "done" ? "" : action(assignmentOf(task) ? "調整指派" : "指派", "assign", task.id)}${action("編輯工作", "edit", task.id)}<label class="d-state-control">工作狀態<select data-task-move="${e(task.id)}">${boardColumns.map(column => `<option value="${column.id}" ${task.status === column.id ? "selected" : ""}>${column.label}</option>`).join("")}</select></label></div></header>
+      ${data.tasks.some(work=>work.requests.some(req=>req.items?.some(item=>item.sourceId===task.id))) ? action("交回工作結果","list-output",task.id) : ""}
       ${signals(data, task)}${dependencyRows(data, task)}
       <nav class="d-work-nav" aria-label="工作內容跳轉">${[["現況", "progress"], ["協作", "request"], ["待辦與分工", "step"], ["日期", "milestone"], ["問題", "issue"], ["資料", "evidence"]].map(([label, target]) => action(label, "jump", task.id, `data-item="${target}"`)).join("")}</nav>
       <div class="d-detail-grid"><div class="d-detail-main">
@@ -386,7 +387,7 @@
           ${task.checklist.map(item => `<div class="d-step"><label><input type="checkbox" data-delivery-check="${e(item.id)}" data-work="${e(task.id)}" ${item.done ? "checked" : ""}><span>${e(item.title)}</span></label>${action("移除", "remove-step", task.id, `data-item="${e(item.id)}"`)}</div>`).join("")}
           ${children(data, task.id).map(child => workRow(project, child)).join("")}
         </section>
-        <section class="d-section"><div class="d-section-title"><div><h3>資料要求與協作往返</h3><p>每個對象可以有自己的期限與確認輪次，不改變整項工作的狀態。</p></div>${action("＋ 資料要求", "request", task.id)}</div>${task.requests.map(request => requestCard(task, request, data)).join("") || `<p class="d-help">例如：會計師需要修訂後的財務資料，預計週五回覆。</p>`}</section>
+        <section class="d-section"><div class="d-section-title"><div><h3>資料要求與協作往返</h3><p>每個對象可以有自己的期限與確認輪次，不改變整項工作的狀態。</p></div><div class="d-actions">${action("＋ 清單", "list-new", task.id)}${action("單筆要求", "request", task.id)}</div></div>${task.requests.map(request => requestCard(task, request, data)).join("") || `<p class="d-help">例如：會計師需要修訂後的財務資料，預計週五回覆。</p>`}</section>
         <section class="d-section"><div class="d-section-title"><div><h3>關鍵日期</h3><p>提交、預約與交付時間分開追蹤，保留預計、約定及實際日期。</p></div>${action("＋ 日期", "milestone", task.id)}</div>${task.milestones.map(milestone => `<div class="d-milestone"><div><strong>${e(milestone.title)}</strong><p>預計 ${dateLabel(milestone.plannedDate)} · 約定 ${dateLabel(milestone.committedDate)}<br>實際 ${milestone.actualDate ? dateLabel(milestone.actualDate) : "尚未發生"}</p>${milestone.note ? `<p>${e(milestone.note)}</p>` : ""}</div>${action("更新", "milestone", task.id, `data-item="${e(milestone.id)}"`)}</div>`).join("") || `<p class="d-help">例如：老師向主管機關提交申請的日期。</p>`}</section>
         <section class="d-section"><div class="d-section-title"><h3>這項工作的歷程</h3>${action("新增紀錄", "note", task.id)}</div>${task.history.length ? task.history.map(item => `<div class="d-history"><time>${e((item.documentEventId ? item.date : item.at || item.date).slice(0, 10))}</time><div><strong>${e(item.title)}</strong><p>${e(item.detail)}</p></div></div>`).join("") : `<p class="d-help">新的變更會記在這裡；舊紀錄仍保留在專案的完整紀錄中。</p>`}
         ${task.reviewRounds.length ? `<details><summary>整項成果確認紀錄 · ${task.reviewRounds.length} 輪</summary>${task.reviewRounds.map(round => `<p>${e(round.person)} · ${dateLabel(round.sentAt?.slice(0, 10))}<br>${e(round.request)}<br>${e(round.reply || "尚無回覆")} · ${e(requestNames[round.state] || "舊版紀錄")}</p>`).join("")}</details>` : ""}</section>
@@ -398,6 +399,7 @@
     </article>`;
   }
   function requestCard(task, request, data) {
+    if (request.items) return lists.card(data,task,request);
     const rounds = request.rounds || [];
     const itemAttr = `data-item="${e(request.id)}"`;
     const inbound = request.direction === "inbound";
@@ -571,8 +573,13 @@
     if (assignment) requireFormChange();
   }
 
+  function requestOutstanding(data, request) {
+    if (request.items && !request.person) return lists.stats(data,request) < request.items.length;
+    return !closedRequest(request);
+  }
+
   function stillNeeded(data, task, except) {
-    return task.requests.some(r => r !== except && !closedRequest(r)) ||
+    return task.requests.some(r => r !== except && requestOutstanding(data,r)) ||
       task.checklist.some(step => !step.done) || children(data, task.id).some(child => child.required && child.status !== "done") ||
       blockers(data, task, "deliver").length > 0 || blockers(data, task, "submit").length > 0;
   }
@@ -668,9 +675,13 @@
           const followButton = secondary ? `<button type="button" class="d-home-follow" data-delivery-action="home-follow" ${target}>${secondary}</button>` : "";
           group.push({ day, html: `<div class="d-home-entry">${row}${followButton}</div>` });
         };
-        for (const req of task.requests.filter(r => !closedRequest(r))) {
+        for (const req of task.requests.filter(r => !closedRequest(r) || r.items && lists.stats(data,r)<r.items.length)) {
           const attr = 'data-item="' + e(req.id) + '"';
-          if (reviewable(req)) {
+          if (req.items) {
+            const ready=lists.stats(data,req);
+            const waiting=req.state==="waiting" && ready===req.items.length;
+            add(waiting ? following : mine, (waiting ? "追蹤提交 · " : ready===req.items.length ? (req.person ? "提交 · " : "檢視已備妥清單 · ") : "準備 · ")+req.title,req.due,"open-request",ready+"/"+req.items.length+" 已備妥"+(req.person ? " · "+req.person : ""),attr);
+          } else if (reviewable(req)) {
             const round = req.rounds.at(-1);
             add(mine, "核對" + req.title, round.receivedDate, "home-check", round.person + "交回 · " + round.receivedDate, attr + ' data-round="' + e(round.id) + '"');
           } else if (req.state === "waiting" || (req.direction === "inbound" && req.state === "revise")) {
@@ -711,6 +722,7 @@
     form(task ? "編輯工作" : parentId ? "新增子工作" : "新增工作", parentId ? "所屬工作：" + e(data.tasks.find(work => work.id === parentId)?.title || "") : "可填期限，也可以稍後再排。",
       field("工作名稱", "title", task?.title, "text", true) +
       field("工作期限（選填）", "due", normalizeDateValue(task?.due), "date") +
+      (task ? "" : '<details class="d-work-options"><summary>＋ 加入清單</summary><div>' + lists.fields() + '</div></details>') +
       `<details class="d-work-options" ${task ? "open" : ""}><summary>成果設定與現況</summary><div>` +
       select("所屬目標／工作", "parentId", parents, task?.parentId || parentId) +
       field("完成標準", "criteria", task?.criteria, "textarea") + field("目前現況", "detail", task?.detail, "textarea") +
@@ -724,6 +736,7 @@
         const updated = { title, parentId: nextParent, criteria: textValue(values, "criteria"), detail: textValue(values, "detail"), owner: textValue(values, "owner"), due: textValue(values, "due"), dueTime: textValue(values, "due") ? textValue(values, "dueTime") : "", required: values.has("required") };
         if (task) Object.assign(task, updated);
         else { task = { id: uid("work"), status: "queue", priority: "normal", ...updated }; data.tasks.push(task); }
+        if (values.has("itemNames")) lists.create(task,values);
         normalize(data); record(data, task, "設定成果工作", title);
       });
     if (task) requireFormChange();
@@ -740,7 +753,8 @@
       const requiredChildren = children(data, task.id).filter(child => child.required && child.status !== "done");
       if (requiredChildren.length) throw new Error(`必要子工作尚未完成：${requiredChildren.map(item => item.title).join("、")}`);
     }
-    if (nextStatus === "done" && assignmentOf(task) && task.requests.some(r => !closedRequest(r))) throw Error("仍有未完成的交件，請先核對或結束該項要求");
+    if (nextStatus === "done" && task.requests.some(req=>req.items && lists.stats(data,req)<req.items.length)) throw Error("清單仍有未備妥的項目，請先核對");
+    if (nextStatus === "done" && assignmentOf(task) && task.requests.some(r => requestOutstanding(data,r))) throw Error("仍有未完成的交件，請先核對或結束該項要求");
     const previous = task.status;
     if (previous === nextStatus) return;
     task.status = nextStatus;
@@ -761,7 +775,7 @@
         });
     } else {
       const s = summary(data, task);
-      const unfinishedRequests = s.works.flatMap(item => item.requests).filter(item => !["accepted", "cancelled"].includes(item.state)).length;
+      const unfinishedRequests = s.works.flatMap(item => item.requests).filter(item => requestOutstanding(data,item)).length;
       const unfinishedSteps = task.checklist.filter(item => !item.done).length;
       const reminder = s.issues.length || unfinishedRequests || unfinishedSteps ? `仍有 ${s.issues.length} 個問題、${unfinishedRequests} 項未結協作、${unfinishedSteps} 個未完成步驟。請先收尾；若不影響本次交付，請在驗收結果說明原因。` : "";
       form(mode === "return" ? returnStatus === "queue" ? "撤回確認，移至待處理" : "記錄修改要求" : "確認成果完成", mode === "return" ? `保留本輪回覆，工作回到${statusName(returnStatus)}。之後可再送出新一輪確認。` : `依完成標準驗收：${e(task.criteria || "依實際交回內容確認")}。${reminder}`,
@@ -814,10 +828,14 @@
     form(request ? "調整資料要求" : "新增資料要求", "這是工作內的一次協作要求。可同時向不同對象準備資料，不會額外拆成主要工作。",
       select("資料方向", "direction", [["outbound", "我提供資料，請對方確認"], ["inbound", "我向對方取得資料"]], request?.direction || "outbound") +
       field("需要提供／取得什麼", "title", request?.title, "text", true) + field("協作對象", "person", request?.person ?? task.owner, "text", true) + field("資料要求或確認條件", "criteria", request?.criteria, "textarea") +
-      `<div class="d-form-columns">${field("提供期限", "due", request?.due, "date")}${field("預計回覆", "expectedDate", request?.expectedDate, "date")}</div>`, "儲存要求", values => {
+      `<div class="d-form-columns">${field("提供期限", "due", request?.due, "date")}${field("預計回覆", "expectedDate", request?.expectedDate, "date")}</div>` + (request ? '<details class="d-work-options" data-expand-request><summary>拆成清單項目</summary>'+field("每行一項","listLines","","textarea")+'</details>' : ""), "儲存要求", values => {
         const direction = request?.rounds.length ? request.direction : textValue(values, "direction");
         const updated = { direction, title: requiredValue(values, "title", "請填寫資料要求"), person: requiredValue(values, "person", "請填寫協作對象"), criteria: textValue(values, "criteria"), due: textValue(values, "due"), expectedDate: direction === "inbound" ? textValue(values, "due") : textValue(values, "expectedDate") };
-        if (request) Object.assign(request, updated);
+        if (request) {
+          Object.assign(request, updated);
+          const rows=direction==="outbound" ? lists.newRows(textValue(values,"listLines")) : [];
+          if(rows.length) Object.assign(request,{items:rows,state:"preparing"});
+        }
         else task.requests.push({ id: uid("request"), state: "preparing", rounds: [], ...updated });
         record(data, task, "更新資料要求", `${updated.person}：${updated.title}`);
       });
@@ -826,6 +844,7 @@
     if (direction.disabled) direction.parentElement.insertAdjacentHTML("afterend", '<p class="d-help">已有往返紀錄，保留原資料方向；不同方向請另建要求。</p>');
     const update = () => {
       const inbound = direction.value === "inbound";
+      const expand=dialog.querySelector("[data-expand-request]"); if(expand) expand.hidden=inbound;
       const dueLabel = dialog.querySelector('[name="due"]').parentElement;
       dueLabel.firstChild.textContent = inbound ? "對方提供期限" : "我方提供期限";
       const expected = dialog.querySelector('[name="expectedDate"]');
@@ -967,6 +986,7 @@
       requestAnimationFrame(() => {
         if (uiState.projectId !== projectId || uiState.focusRecordId !== id) return;
         const target = projectRoomContent.querySelector(selector);
+        if (target?.matches("[data-list-disclosure]")) target.open=true;
         target?.scrollIntoView({ block: "center", behavior: "instant" });
         const control = target?.matches("button") ? target : target?.querySelector("button");
         control?.focus({ preventScroll: true });
@@ -975,6 +995,7 @@
     }
     const data = workspaceData[projectId]; if (!data) return;
     const task = data.tasks.find(work => work.id === id);
+    if (name.startsWith("list-") && task) return lists.handle(name,data,task,task.requests.find(r=>r.id===itemId),button.dataset.row);
     if (name === "home-step" && task) {
       const step = task.checklist.find(step => step.id === itemId);
       if (!step || step.done) return;
@@ -1142,6 +1163,7 @@
   window.addEventListener("popstate", routeFromLocation);
   document.querySelector(".map-legend").innerHTML = `<span>交付目標</span><span>→ 主要成果</span><span>→ 子工作</span><span><i class="legend-mark current"></i>進行中的工作</span>`;
   document.querySelector(".map-note p").textContent = "雙指或滾輪縮放，拖曳畫布移動。點選成果進入操作，＋ 展開子工作。連線表示所屬關係，不代表先後順序。";
+  const lists = createRequirementLists({form, field, select, action, uid, record, normalize, artifactFields, withArtifacts, saved:alreadySaved, dialog});
   saveWorkspaceData(); routeFromLocation();
   // Explicit model API for regression checks; all mutations still go through the same functions.
   window.deliveryModel = { normalize, children, descendants, summary, blockers, transition, hasPath, record };

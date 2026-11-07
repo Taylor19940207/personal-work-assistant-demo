@@ -38,7 +38,8 @@ const topologyProjects = [
 ];
 
 const workspaceSchemaVersion = 6;
-const workspaceStorageKey = "personal-assistant-workspaces-v6";
+if (window.exampleWorkspace) topologyProjects.length = 0;
+const workspaceStorageKey = window.exampleWorkspace ? "personal-assistant-examples-v1" : "personal-assistant-workspaces-v6";
 const legacyWorkspaceStorageKey = "personal-assistant-workspaces-v5";
 const documentLibrary = { documents: [] };
 let workspaceLoadError = "";
@@ -62,6 +63,14 @@ function validateWorkspaceStructure(data) {
     list(task.dependsOn, "工作關係"); list(task.legacyDependencies, "舊版工作關係");
     for (const request of objects(task.requests, "資料要求")) {
       if (typeof request.id !== "string" || !Array.isArray(request.rounds)) throw new Error("資料要求缺少往返紀錄清單");
+      if (request.items != null) {
+        if (!Array.isArray(request.items) || !request.items.length || new Set(request.items.map(item=>item?.id)).size!==request.items.length) throw Error("清單缺少項目或有重複識別碼");
+        for (const item of objects(request.items,"清單項目")) {
+          if (typeof item.id!=="string" || typeof item.title!=="string" || !["missing","checking","revise","ready"].includes(item.state) || !Array.isArray(item.refs)) throw Error("清單項目格式不正確");
+          objects(item.refs,"清單版本"); objects(item.history,"項目紀錄");
+        }
+        objects(request.unfiled,"待歸位文件");
+      }
       for (const round of objects(request.rounds, "往返紀錄")) objects(round.artifacts, "送出資料");
     }
   }
@@ -184,7 +193,7 @@ function loadWorkspaceData() {
   const seed = createWorkspaceSeed();
   try {
     const currentPayload = JSON.parse(localStorage.getItem(workspaceStorageKey));
-    const legacyPayload = currentPayload ? null : JSON.parse(localStorage.getItem(legacyWorkspaceStorageKey)) || JSON.parse(localStorage.getItem("personal-assistant-workspaces-v4")) || JSON.parse(localStorage.getItem("personal-assistant-workspaces-v3")) || JSON.parse(localStorage.getItem("personal-assistant-workspaces-v2"));
+    const legacyPayload = currentPayload || window.exampleWorkspace ? null : JSON.parse(localStorage.getItem(legacyWorkspaceStorageKey)) || JSON.parse(localStorage.getItem("personal-assistant-workspaces-v4")) || JSON.parse(localStorage.getItem("personal-assistant-workspaces-v3")) || JSON.parse(localStorage.getItem("personal-assistant-workspaces-v2"));
     const payload = currentPayload || legacyPayload;
     const saved = payload?.workspaceData || payload;
     if (payload?.documentLibrary) {
