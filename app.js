@@ -1550,19 +1550,19 @@ function createNextTaskFromRecord(data, { title, sourceIssueId = "", sourceDecis
   return task;
 }
 
-function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRecordId = "") {
+function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRecordId = "", listOrigin = null) {
   const project = getProject(projectId);
   if (!project) return;
   const isAlreadyProjectDepth = uiState.surface === "project";
   const sameCase = isAlreadyProjectDepth && uiState.projectId === projectId;
   const targetWork = tab === "board" && workspaceData[projectId]?.tasks.find(work => work.id === focusRecordId);
-  const drilling = pushRoute && sameCase && targetWork && (
+  const drilling = pushRoute && sameCase && targetWork && (listOrigin ||
     targetWork.parentId === uiState.focusRecordId && uiState.projectTab === "board" ||
     !uiState.focusRecordId && ["overview", "board"].includes(uiState.projectTab)
   );
-  const previous = { tab: uiState.projectTab, work: uiState.focusRecordId || "" };
+  const previous = { tab: uiState.projectTab, work: uiState.focusRecordId || "", listOrigin };
   if (drilling) {
-    history.replaceState({ ...history.state, returnScroll: { page: scrollY, room: projectRoomContent.scrollTop, child: focusRecordId } }, "");
+    history.replaceState({ ...history.state, returnScroll: { page: scrollY, room: projectRoomContent.scrollTop, child: focusRecordId, listOrigin } }, "");
   }
   if (uiState.surface === "portfolio") portfolioScroll = { page: window.scrollY, list: listView.scrollTop };
   const allowedTabs = new Set(["overview", "board", "records", "files", "activity"]);
@@ -1584,7 +1584,6 @@ function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRec
   inspector.inert = true;
   setActiveMode("focus");
   syncDepthNavigation();
-  renderProjectRoom();
   const recordRoute = focusRecordId ? `&record=${encodeURIComponent(focusRecordId)}` : "";
   if (pushRoute) {
     const oldDepth = history.state?.projectDepth ?? (history.state?.returnToPortfolio ? 1 : 0);
@@ -1595,6 +1594,7 @@ function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRec
     if (isAlreadyProjectDepth && !drilling) history.replaceState(state, "", route);
     else history.pushState(state, "", route);
   }
+  renderProjectRoom();
   requestAnimationFrame(() => {
     if (focusRecordId) focusProjectRecord(focusRecordId);
     else projectRoom.querySelector("h1")?.focus?.();

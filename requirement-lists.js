@@ -67,7 +67,7 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     for (const item of req.items) {
       const {state,source,output,refs} = rowView(data,item);
       const hint = [state==="ready" && submitted(req,itemSnapshot(data,item)) ? "已提交" : "",item.note,source && (output ? "來自" : "等") + "「" + source.title + "」",output?.note,item.stepId && task.checklist.find(s=>s.id===item.stepId && !s.done)?.title,refs.length ? refs.length + " 份資料" : ""].filter(Boolean).join(" · ");
-      const row = `<div class="rl-row"><button type="button" class="rl-item" data-delivery-action="list-item" data-work="${e(task.id)}" data-item="${e(req.id)}" data-row="${e(item.id)}"><strong>${e(item.title)}</strong><span data-state="${e(state)}">${statuses[state]}</span>${hint ? "<small>"+e(hint)+"</small>" : ""}</button>${source ? action("查看來源工作 ↗","open",source.id) : ""}</div>`;
+      const row = `<div class="rl-row"><button type="button" class="rl-item" data-delivery-action="list-item" data-work="${e(task.id)}" data-item="${e(req.id)}" data-row="${e(item.id)}"><strong>${e(item.title)}</strong><span data-state="${e(state)}">${statuses[state]}</span>${hint ? "<small>"+e(hint)+"</small>" : ""}</button>${source ? action("查看「"+e(source.title)+"」的進度 ↗","list-visit",task.id,`data-item="${e(req.id)}" data-row="${e(item.id)}"`) : ""}</div>`;
       (state==="ready" ? readyRows : dueRows).push(row);
     }
     const rows=dueRows.join("")+(readyRows.length ? `<details class="rl-ready"><summary>查看已備妥項目 · ${readyRows.length}</summary>${readyRows.join("")}</details>` : "");
@@ -94,26 +94,45 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     return {fileId:file.id,versionId:v.id,name:v.name,versionLabel:"v"+(file.versions.indexOf(v)+1)};
   }
   function rowForm(data,task,req,item) {
-    const {source,output,state,refs}=rowView(data,item);
-    const fixed = refs.map(ref=>refButton(data,ref)).join(" ");
+    const {source,state}=rowView(data,item);
+    const currentId = item.sourceId || "";
+    const candidates = data.tasks.filter(work => work.id !== task.id && !related(data, work.id, task.id));
+    const choices = [["", currentId ? "解除關聯" : "自行準備"]];
+    for (const work of candidates) choices.push([work.id, work.title]);
+    if (currentId && !candidates.some(work => work.id === currentId)) choices.push([currentId, source?.title || "原工作已移除"]);
+    const delegateValue = "@new-assignment";
+    if (!currentId) choices.push([delegateValue, "新增工作並指派…"]);
+    const activeStep = task.checklist.find(step => step.id === item.stepId && !step.done);
     const history = item.history?.length ? '<details><summary>項目紀錄 · '+item.history.length+'</summary>'+item.history.slice().reverse().map(entry=>
       '<p>'+e(entry.date)+' · '+e(statuses[entry.state])+' · '+e(entry.note)+'</p>'+entry.refs.map(ref=>refButton(data,ref)).join(" ")).join("")+'</details>' : "";
     const replace = item.refs.length ? select("上傳檔案用途","replace",[["","加入另一份資料"],...item.refs.map(ref=>[ref.fileId,"更新 "+ref.name])],"") : "";
-    form(e(item.title),e(req.title), (fixed ? '<div class="d-actions">'+fixed+'</div>' : "") +
-      (source ? '<p>連到「'+e(source.title)+'」 · '+e(output?.note || (output ? "工作已交回資料" : "等待工作結果"))+'</p>' : "") +
+    form(e(item.title),e(req.title),
+      select("關聯工作（選填）", "source", choices, currentId) +
+      '<div data-new-assignment hidden>'+field("交給誰","assignee")+field("交回日期（選填）","due","","date")+'</div>' +
+      '<div data-link-preview aria-live="polite"></div>' +
       select("目前狀態","rowState",Object.entries(statuses),state) +
       field("缺什麼／確認紀錄（選填）","rowNote",item.note,"textarea") +
       '<details class="d-work-options"><summary>加入文件或網址</summary><div>'+artifactFields(data,task)+replace+field("來源網址","rowUrl","","url")+
       ((item.refs || []).length ? '<fieldset><legend>保留的資料</legend>'+item.refs.map((ref,i)=>`<label class="d-check"><input type="checkbox" name="keep" value="${i}" checked><span>${e(ref.name)} · ${e(ref.versionLabel)}</span></label>`).join("")+'</fieldset>' : "")+'</div></details>'+
       history + '<details class="d-work-options"><summary>修改項目名稱</summary>'+field("名稱","rowTitle",item.title,"text",true)+action("移除此列","list-remove",task.id,'data-item="'+e(req.id)+'" data-row="'+e(item.id)+'"')+'</details>'+
-      '<div class="d-actions">'+action("待辦、指派或連到工作","list-route",task.id,`data-item="${e(req.id)}" data-row="${e(item.id)}"`)+'</div>',
+      (activeStep ? '<p>我的待辦 · '+e(activeStep.title)+'</p>' :
+        '<details class="d-work-options"><summary>加到我的待辦</summary>'+field("要做什麼","step")+'</details>'),
       "儲存",values=>{
+        const selectedId = values.get("source");
+        const delegate = selectedId === delegateValue;
+        const newSource = candidates.find(work => work.id === selectedId) || (selectedId === currentId ? source : null);
+        if (selectedId && !delegate && !newSource && selectedId !== currentId) throw Error("請重新選擇工作");
+        const assignee = delegate ? values.get("assignee").trim() : "";
+        if (delegate && !assignee) throw Error("請填承接人");
+        const linkedOutput = workResult(newSource);
+        const sourceChanged = selectedId !== currentId;
+        const stepTitle = (values.get("step") || "").trim();
         const url=String(values.get("rowUrl")||"").trim();
         if(url && !/^https?:\/\//i.test(url)) throw Error("請使用 http 或 https 網址");
         const title=values.get("rowTitle").trim(); if(!title) throw Error("請填項目名稱");
         let next=values.get("rowState"); const note=values.get("rowNote").trim();
         if(next==="revise" && !note) throw Error("請記下需要補正的內容");
-        if(source && !output && next==="ready") throw Error("請先登錄來源工作的交回結果，或解除連結");
+        if((newSource || delegate) && !linkedOutput && next==="ready") throw Error("請先登錄來源工作的交回結果，或解除連結");
         const kept=values.getAll("keep").map(i=>item.refs[Number(i)]);
         const uploading=values.getAll("upload").some(f=>f.name);
         const replaceId=values.get("replace");
@@ -121,65 +140,93 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
         const target=data.files.find(file=>file.id===replaceId);
         const context=target ? {fileId:target.id,baseVersionId:documentModel.current(target)?.id} : {};
         const selecting=values.getAll("artifact").length || values.getAll("libraryDocument").length;
-        if(!uploading && !selecting && !url && kept.length===item.refs.length && next===state && title===item.title && note===item.note && item.seenOutput===(output?.id || "")) throw Error("目前沒有變更");
+        if(!sourceChanged && !stepTitle && !uploading && !selecting && !url && kept.length===item.refs.length && next===state && title===item.title && note===item.note) throw Error("目前沒有變更");
         return withArtifacts(data,task,values,added=>{
           if(url) added.push(pin(documentModel.source({url,projectId:uiState.projectId,kind:"task",id:task.id})));
           const updated=uniq([...kept.filter(old=>!added.some(ref=>ref.fileId===old.fileId && ref.versionId!==old.versionId)),...added]);
           const refsChanged=JSON.stringify(updated)!==JSON.stringify(item.refs || []);
           if(refsChanged && next===state && next!=="checking") next="checking";
 
-          Object.assign(item,{title,refs:updated,state:next,note,seenOutput:output?.id || ""});
-          if (next==="ready") item.approvalId=uid("approval");
-          item.history ||= [];
-          item.history.push({id:uid("row-event"),date:localISODate(),at:new Date().toISOString(),state:next,note,refs:structuredClone(uniq([...updated,...(output?.refs || [])]))});
-          editable(req); record(data,task,item.title+" · "+statuses[next],note);
+          let linkedId = selectedId;
+          if (delegate) {
+            linkedId = uid("work");
+            const due = values.get("due");
+            data.tasks.push({id:linkedId,title,parentId:task.id,required:true,status:"queue",due,
+              requests:[{id:uid("request"),assignment:true,direction:"inbound",state:"waiting",title,person:assignee,returnTo:"我",due,expectedDate:due,rounds:[]}]});
+            normalize(data);
+          }
+          if (stepTitle) {
+            item.stepId = uid("step");
+            task.checklist.push({id:item.stepId,title:stepTitle,done:false});
+          }
+          const rowChanged = sourceChanged || title!==item.title || note!==item.note || refsChanged || next!==state;
+          if (rowChanged) {
+            Object.assign(item,{title,refs:updated,state:next,note,sourceId:linkedId,seenOutput:linkedOutput?.id || ""});
+            if (next==="ready") item.approvalId=uid("approval");
+            item.history ||= [];
+            item.history.push({id:uid("row-event"),date:localISODate(),at:new Date().toISOString(),state:next,note,
+              sourceId:linkedId,refs:structuredClone(uniq([...updated,...(linkedOutput?.refs || [])]))});
+            editable(req);
+          }
+          const relationship = sourceChanged ? (source?.title || "自行準備")+" → "+(delegate ? title+"（"+assignee+"）" : newSource?.title || "自行準備") : "";
+          record(data,task,item.title+" · "+statuses[next],[relationship,note,stepTitle && "待辦："+stepTitle].filter(Boolean).join(" · "));
         },context);
       });
-    // Switch between item forms only from an untouched editor.
-    const route=dialog.querySelector('[data-delivery-action="list-route"]');
-    dialog.querySelector("form").addEventListener("input",()=>{route.disabled=true;});
+    const editor = dialog.querySelector("form");
+    const sourceField = editor.elements.source;
+    const stateField = editor.elements.rowState;
+    const submit = editor.querySelector('[type="submit"]');
+    function preview() {
+      const selected = sourceField.value;
+      const delegate = selected === delegateValue;
+      const work = data.tasks.find(work => work.id === selected);
+      const result = workResult(work);
+      const retained = item.refs.filter((_,i)=>editor.querySelector('[name="keep"][value="'+i+'"]')?.checked);
+      const attachments = uniq([...retained,...(result?.refs || [])]);
+      const message = delegate ? "" : work ? (result ? "交回結果" : "等待這項工作交回結果") :
+        currentId ? "儲存後解除關聯" : candidates.length ? "" : "本案目前沒有其他可關聯的工作";
+      editor.querySelector("[data-link-preview]").innerHTML =
+        (message ? "<p>"+e(message)+(result?.note ? " · "+e(result.note) : "")+"</p>" : "")+
+        attachments.map(ref=>refButton(data,ref)).join(" ");
+      const assignment = editor.querySelector("[data-new-assignment]");
+      assignment.hidden = !delegate;
+      editor.elements.assignee.disabled = !delegate;
+      editor.elements.assignee.required = delegate;
+      editor.elements.due.disabled = !delegate;
+      stateField.querySelector('[value="ready"]').disabled = Boolean((work || delegate) && !result);
+    }
+    preview();
+    function signature() {
+      return JSON.stringify([...new FormData(editor)].map(([key,val])=>
+        [key, val instanceof File ? [val.name,val.size,val.name ? val.lastModified : 0] : val]));
+    }
+    const initial = signature();
+    function syncSave() {
+      const missingAssignee = sourceField.value === delegateValue && !editor.elements.assignee.value.trim();
+      submit.disabled = missingAssignee || signature() === initial;
+    }
+    sourceField.addEventListener("change", ()=>{
+      const result = workResult(data.tasks.find(work => work.id === sourceField.value));
+      const hasMaterial = result || (!sourceField.value && item.refs.length);
+      const changedLinkState = hasMaterial ? "checking" : "missing";
+      stateField.value = sourceField.value === currentId ? state : changedLinkState;
+      preview(); syncSave();
+    });
+    editor.addEventListener("change",event=>{if(event.target.name==="keep") preview();syncSave();});
+    editor.addEventListener("input",syncSave);
+    syncSave();
   }
   function related(data,from,target,seen=new Set()) {
     if (from===target) return true;
     if(seen.has(from)) return false;
     seen.add(from);
     const work=data.tasks.find(x=>x.id===from);
-    return (work?.requests || []).flatMap(r=>r.items || []).some(i=>i.sourceId && related(data,i.sourceId,target,seen));
-  }
-  function routeForm(data,task,req,item) {
-    dialog.close();
-    const options=data.tasks.filter(w=>w.id!==task.id && !related(data,w.id,task.id));
-    form("安排「"+e(item.title)+"」",e(task.title),
-      select("怎麼處理","route",[["link","連到已有工作"],["delegate","請人處理"],["todo","加到我的待辦"],...(item.sourceId?[["unlink","解除工作連結"]]:[])],options.length?"link":"delegate")+
-      select("來源工作","source",options.map(w=>[w.id,w.title]),item.sourceId)+field("交給誰","assignee")+field("交回日期（選填）","due","","date")+field("待辦內容","step",item.title),
-      "儲存安排",values=>{
-        const route=values.get("route");
-        let id=values.get("source");
-        if(route==="todo"){
-          if(task.checklist.some(s=>s.id===item.stepId && !s.done)) throw Error("這一項已有未完成的待辦");
-          const title=values.get("step").trim(); if(!title) throw Error("請填待辦內容");
-          item.stepId=uid("step"); task.checklist.push({id:item.stepId,title,done:false});
-        } else {
-          if(route==="delegate"){
-            if(item.sourceId) throw Error("此項已有來源工作，請調整原工作的指派或先解除連結");
-            const person=values.get("assignee").trim(); if(!person) throw Error("請填承接人");
-            id=uid("work");
-            const due=values.get("due");
-            data.tasks.push({id,title:item.title,parentId:task.id,required:true,status:"queue",due,requests:[{id:uid("request"),assignment:true,direction:"inbound",state:"waiting",title:item.title,person,returnTo:"我",due,expectedDate:due,rounds:[]}]});
-            normalize(data);
-          }
-          if(route==="link" && (!id || id===item.sourceId || !options.some(w=>w.id===id))) throw Error("請選擇不同的來源工作");
-          item.sourceId=route==="unlink"?"":id;
-          item.seenOutput=""; item.state=item.refs.length?"checking":"missing";
-          editable(req);
-        }
-        record(data,task,"安排清單項目",item.title);
-      });
-    const choice=dialog.querySelector('[name="route"]');
-    function sync(){ for(const [name,type] of [["source","link"],["assignee","delegate"],["due","delegate"],["step","todo"]]){
-      const el=dialog.querySelector('[name="'+name+'"]'); el.parentElement.hidden=choice.value!==type;
-    }}
-    choice.onchange=sync; sync();
+    const dependencies = [
+      ...(work?.requests || []).flatMap(req => (req.items || []).map(item => item.sourceId)),
+      ...(work?.conditions || []).map(condition => condition.workId),
+      ...data.tasks.filter(child => child.required && child.parentId === from).map(child => child.id)
+    ];
+    return dependencies.some(id => id && related(data,id,target,seen));
   }
   function outputForm(data,task){
     form("交回工作結果",e(task.title),artifactFields(data,task)+field("網址","url","","url")+field("結果說明","note","","textarea"),"記錄交回",values=>{
@@ -245,7 +292,8 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     if(!req?.items) return;
     const item=req.items.find(i=>i.id===rowId);
     if(name==="list-item" && item) return rowForm(data,task,req,item);
-    if(name==="list-route" && item) return routeForm(data,task,req,item);
+    if(name==="list-visit" && item && data.tasks.some(work=>work.id===item.sourceId))
+      return openProjectRoom(uiState.projectId,"board",true,item.sourceId,{request:req.id,row:item.id});
     if(name==="list-remove" && item) {
       dialog.close();
       return form("移除「"+e(item.title)+"」","歷次提交、已存文件及已建立的工作會保留。", "", "確認移除",()=>{

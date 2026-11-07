@@ -315,7 +315,7 @@
 
   function breadcrumb(data, task) {
     const parent = data.tasks.find(item => item.id === task.parentId);
-    const up = parent ? action("← " + e(parent.title), "work-up", task.id) : action("← 案件工作", "work-up", task.id);
+    const up = history.state?.fromWork?.listOrigin ? action("← 回清單項目","work-up",task.id) : parent ? action("← " + e(parent.title), "work-up", task.id) : action("← 案件工作", "work-up", task.id);
     return `<nav class="d-breadcrumb" aria-label="工作層級">${up}</nav>`;
   }
   function overview(project, data) {
@@ -371,8 +371,8 @@
       delete back.dataset.action;
       back.dataset.deliveryAction = "work-up";
       back.dataset.work = selected.id;
-      back.setAttribute("aria-label", "返回上一層工作");
-      back.title = "返回上一層";
+      back.title = history.state?.fromWork?.listOrigin ? "回清單項目" : "返回上一層";
+      back.setAttribute("aria-label", back.title);
     }
     const project = getProject(uiState.projectId);
     const summaryLine = projectRoomHeader.querySelector(".project-heading-copy > p:last-child");
@@ -1076,7 +1076,7 @@
     if (name === "work-up" && task) {
       const parent = data.tasks.find(work => work.id === task.parentId);
       const from = history.state?.fromWork;
-      if (from && (parent ? from.work === parent.id : !from.work)) return history.back();
+      if (from && (from.listOrigin || (parent ? from.work === parent.id : !from.work))) return history.back();
       if (parent) openWork(projectId, parent.id);
       else setProjectTab("overview");
       requestAnimationFrame(() => {
@@ -1202,7 +1202,13 @@
     const position = history.state?.returnScroll;
     if (position && routeProject) requestAnimationFrame(() => {
       if (uiState.projectId !== routeProject) return;
-      const row = projectRoomContent.querySelector(`[data-delivery-action="open"][data-work="${CSS.escape(position.child)}"]`);
+      const origin = position.listOrigin;
+      const row = origin
+        ? projectRoomContent.querySelector(`[data-request-id="${CSS.escape(origin.request)}"] [data-delivery-action="list-visit"][data-row="${CSS.escape(origin.row)}"]`)
+        : projectRoomContent.querySelector(`[data-delivery-action="open"][data-work="${CSS.escape(position.child)}"]`);
+      if (origin && row) for (let el=row.parentElement; el && el!==projectRoomContent; el=el.parentElement) {
+        if (el.tagName==="DETAILS") el.open=true;
+      }
       row?.focus({preventScroll:true});
       projectRoomContent.scrollTop = position.room;
       window.scrollTo({top:position.page, behavior:"instant"});

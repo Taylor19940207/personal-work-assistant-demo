@@ -38,9 +38,9 @@
       delete back.dataset.action;
       back.dataset.deliveryAction = "work-up";
       back.dataset.work = current.id;
-      back.textContent = "← 上一層";
+      back.textContent = history.state?.fromWork?.listOrigin ? "← 回清單" : "← 上一層";
       const parent = workspaceData[uiState.projectId].tasks.find(task => task.id === current.parentId);
-      back.setAttribute("aria-label", parent ? "返回「" + parent.title + "」" : "返回案件工作");
+      back.setAttribute("aria-label", history.state?.fromWork?.listOrigin ? "回清單項目" : parent ? "返回「" + parent.title + "」" : "返回案件工作");
     } else {
       delete back.dataset.deliveryAction; delete back.dataset.work; back.removeAttribute("aria-label");
       back.dataset.action = "leave-project"; back.textContent = "← 全局";
