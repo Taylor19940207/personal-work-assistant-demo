@@ -195,6 +195,5 @@
   refreshProjectDataSurface = function(...args) { model.sync(); const result = previousRefresh(...args); render(); return result; };
   
   document.querySelector(".command-actions").insertAdjacentHTML("afterbegin", button("文件庫", "library"));
-  document.querySelector(".w-overview-actions").insertAdjacentHTML("beforeend", button("文件庫", "library"));
   window.documentUI = { open, choose, render, recordForm, update };
 })();

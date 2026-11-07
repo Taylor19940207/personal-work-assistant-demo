@@ -200,8 +200,13 @@ function loadWorkspaceData() {
       if (!Array.isArray(payload.documentLibrary.documents)) throw new Error("文件庫格式不正確");
       documentLibrary.documents = payload.documentLibrary.documents;
     }
-    if (!saved || typeof saved !== "object") return seed;
+    if (payload != null && (!saved || typeof saved !== "object" || Array.isArray(saved))) throw Error("工作區資料格式不正確");
+    if (!saved) {
+      topologyProjects.length = 0;
+      return {};
+    }
     if (Array.isArray(payload.projects)) {
+      if (payload.projects.some(project => !Object.hasOwn(saved, project.id))) throw Error("工作區缺少登記案件的資料");
       const definitions = payload.projects.map(projectDefinition);
       for (const definition of definitions) {
         const existing = topologyProjects.find(project => project.id === definition.id);
@@ -209,8 +214,15 @@ function loadWorkspaceData() {
         else { topologyProjects.push(definition); seed[definition.id] = emptyWorkspaceData(); }
       }
     }
+    // Seed definitions also supply historical map nodes. Only restore cases present on this device.
+    for (let i = topologyProjects.length - 1; i >= 0; i--) {
+      const id = topologyProjects[i].id;
+      if (!Object.hasOwn(saved, id)) {
+        delete seed[id];
+        topologyProjects.splice(i, 1);
+      }
+    }
     for (const project of topologyProjects) {
-      if (!saved[project.id]) continue;
       seed[project.id] = migrateProjectData(project, saved[project.id], seed[project.id]);
     }
   } catch (error) {
@@ -1069,6 +1081,8 @@ function setView(view, { persistPreference = true } = {}) {
   mapView.hidden = !showMap;
   mobileOverview.hidden = !showMobileOverview;
   listView.hidden = !showList;
+  appFrame.classList.toggle("is-my-work", view === "mine" && uiState.surface === "portfolio");
+  appFrame.classList.toggle("empty-home", view === "mine" && !getPortfolioProjects().length);
   appFrame.classList.toggle("is-list-view", showList && uiState.surface === "portfolio");
   document.querySelectorAll("[data-view]").forEach(button => {
     const active = button.dataset.view === view;
@@ -1564,7 +1578,7 @@ function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRec
   projectRoom.hidden = false;
   workspace.classList.add("is-project-depth");
   appFrame.classList.add("is-project-depth");
-  appFrame.classList.remove("is-list-view");
+  appFrame.classList.remove("is-list-view", "is-my-work", "empty-home");
   inspector.classList.remove("is-open");
   inspector.setAttribute("aria-hidden", "true");
   inspector.inert = true;

@@ -404,7 +404,7 @@
       field("案件名稱", "name", "", "text", true) + field("預計交付日（選填）", "due", "", "date") +
       '<details class="d-work-options"><summary>自訂交付目標與驗收標準</summary><div>' + field("交付目標", "goal") + field("驗收標準", "criteria", "", "textarea") + '</div></details>', "建立案件", values => {
         const project = createProject({ name: value(values, "name"), goal: value(values, "goal") || value(values, "name"), criteria: value(values, "criteria"), due: value(values, "due") });
-        openProjectRoom(project.id, "overview"); showToast("案件已建立，接著加入主要成果");
+        openProjectRoom(project.id, "overview"); showToast("案件已建立");
       });
   }
   let managerTab = "active";
@@ -492,7 +492,10 @@
       if (section) {
         section.dataset.workSection = "files";
         const files = data.files.filter(file => file.workIds?.includes(work.id) || file.linkedType === "task" && file.linkedId === work.id);
-        section.innerHTML = `<div class="d-section-title"><h3>資料與證明</h3><div class="d-actions"><button type="button" class="primary-action" data-workspace-action="upload-task" data-work="${e(work.id)}">加入文件</button><button type="button" class="d-action" data-doc-action="choose" data-work="${e(work.id)}">選用已有文件</button><button type="button" class="d-action" data-workspace-action="link-task" data-work="${e(work.id)}">加入連結</button></div></div><button type="button" class="evidence-drop w-drop-zone" data-workspace-action="upload-task" data-work="${e(work.id)}" data-evidence-kind="task" data-evidence-id="${e(work.id)}"><strong>拖入文件，直接加入這項工作</strong><span>自動關聯「${e(work.title)}」，文件庫同步保存，不必另外指定。</span></button>${files.map(file => `${renderFile(file, data, true)}<button type="button" class="d-action" data-delivery-action="unlink" data-work="${e(work.id)}" data-item="${e(file.id)}">取消此工作關聯</button>`).join("") || `<p>加入文件後就會顯示在這裡；已有的謄本或憑證可直接選用。</p>`}`;
+        section.innerHTML = `<div class="d-section-title"><h3>工作文件</h3><button type="button" class="d-action primary-action evidence-drop" title="選擇或拖入檔案" data-workspace-action="upload-task" data-work="${e(work.id)}" data-evidence-kind="task" data-evidence-id="${e(work.id)}">加入文件</button></div>
+          ${files.map(file => `${renderFile(file, data, true)}<button type="button" class="d-action" data-delivery-action="unlink" data-work="${e(work.id)}" data-item="${e(file.id)}">取消此工作關聯</button>`).join("")}`;
+        const extra = projectRoomContent.querySelector(".d-other-tools .d-actions");
+        extra.insertAdjacentHTML("beforeend",`<button type="button" class="d-action" data-doc-action="choose" data-work="${e(work.id)}">從文件庫選用</button><button type="button" class="d-action" data-workspace-action="link-task" data-work="${e(work.id)}">加入連結</button>`);
       }
       // Submission history opens its pinned version, not today's current version.
       projectRoomContent.querySelectorAll(".d-request").forEach(card => {

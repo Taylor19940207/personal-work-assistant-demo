@@ -50,7 +50,7 @@
     const options = `<option value="">全部案件</option>` + getPortfolioProjects().map(p => `<option value="${e(p.id)}">${e(p.name)}</option>`).join('');
     if (select.innerHTML !== options) select.innerHTML = options;
     select.value = selected;
-    bar.querySelector('[data-m-action="add"]').textContent = project ? '＋記錄' : '＋新增';
+    bar.querySelector('[data-m-action="add"]').textContent = project ? '＋記錄' : '新增案件';
     views.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mView === mode)));
     if (mobile) document.querySelectorAll('.d-board-card').forEach(card => card.draggable = false);
   }

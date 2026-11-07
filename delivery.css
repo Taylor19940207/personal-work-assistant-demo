@@ -202,3 +202,33 @@
 .rl-ready > summary { min-height:44px; display:flex; align-items:center; gap:7px; }
 .rl-ready > summary::before { content:"▸"; }
 .rl-ready[open] > summary::before { content:"▾"; }
+.d-start { padding: clamp(24px,4vw,60px) 0; }
+.project-surface.d-start { padding-inline: clamp(16px,3vw,52px); }
+.d-start h2 { margin: 0 0 8px; font-size: clamp(22px,3vw,32px); }
+.d-start p { color:var(--paper-2); margin-bottom:20px; }
+.d-start :is(a,button) { min-height:44px; padding:10px 14px; display:inline-flex; align-items:center; }
+.d-start a { color:var(--paper-2); }
+.d-work-detail :is(.d-other-tools,.d-work-history) { margin:10px 0; padding:4px 0; border-top:1px solid var(--line); }
+.d-work-detail :is(.d-other-tools,.d-work-history)>summary { color:var(--paper-2); min-height:44px; }
+.d-work-detail .d-other-tools .d-actions { margin:0 0 12px; flex-wrap:wrap; }
+.is-my-work .control-spine, .is-my-work .workspace-summary, .is-my-work #portfolio-period,
+.is-my-work .command-actions [data-action="new-event"], .is-my-work .w-overview-actions [data-workspace-action="manager"] { display:none; }
+.is-my-work .workspace { grid-column:1/-1; }
+.is-my-work .workspace-heading > div:first-child { width:100%; display:flex; align-items:center; justify-content:space-between; }
+.is-my-work .w-overview-actions { margin:0; }
+.empty-home .w-overview-actions, .empty-home .m-toolbar [data-m-action="add"] { display:none; }
+.empty-home .workspace-heading { border-bottom:0; }
+.d-work-detail .d-section-title .evidence-drop { display:inline-flex; align-items:center; width:auto; min-height:44px; margin:0; padding:8px 14px; }
+
+.project-room.reading-work {grid-template-rows:auto minmax(0,1fr);}
+.reading-work .project-tabs {display:none;}
+.d-case-link {border:0;padding:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;}
+.d-case-link small {font:12px var(--sans);color:var(--signal);white-space:nowrap;}
+@media (max-width:719px), (pointer:coarse) and (max-width:1100px) {
+  .d-case-link {min-height:44px;}
+  .reading-work .d-breadcrumb {display:none;}
+  .reading-work .d-detail-grid {display:flex;flex-direction:column;}
+  .reading-work .d-detail-main,.reading-work .d-detail-grid>.d-side {display:contents;}
+  .reading-work .d-other-tools {order:1;}
+  .reading-work .d-work-history {order:2;}
+}
