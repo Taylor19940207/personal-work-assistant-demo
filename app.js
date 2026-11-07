@@ -1531,6 +1531,16 @@ function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRec
   const project = getProject(projectId);
   if (!project) return;
   const isAlreadyProjectDepth = uiState.surface === "project";
+  const sameCase = isAlreadyProjectDepth && uiState.projectId === projectId;
+  const targetWork = tab === "board" && workspaceData[projectId]?.tasks.find(work => work.id === focusRecordId);
+  const drilling = pushRoute && sameCase && targetWork && (
+    targetWork.parentId === uiState.focusRecordId && uiState.projectTab === "board" ||
+    !uiState.focusRecordId && ["overview", "board"].includes(uiState.projectTab)
+  );
+  const previous = { tab: uiState.projectTab, work: uiState.focusRecordId || "" };
+  if (drilling) {
+    history.replaceState({ ...history.state, returnScroll: { page: scrollY, room: projectRoomContent.scrollTop, child: focusRecordId } }, "");
+  }
   if (uiState.surface === "portfolio") portfolioScroll = { page: window.scrollY, list: listView.scrollTop };
   const allowedTabs = new Set(["overview", "board", "records", "files", "activity"]);
   if (!allowedTabs.has(tab)) tab = "overview";
@@ -1554,9 +1564,12 @@ function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRec
   renderProjectRoom();
   const recordRoute = focusRecordId ? `&record=${encodeURIComponent(focusRecordId)}` : "";
   if (pushRoute) {
-    const state = { surface: "project", projectId, returnToPortfolio: true };
+    const oldDepth = history.state?.projectDepth ?? (history.state?.returnToPortfolio ? 1 : 0);
+    const state = { surface: "project", projectId, returnToPortfolio: !isAlreadyProjectDepth || Boolean(history.state?.returnToPortfolio),
+      projectDepth: isAlreadyProjectDepth ? oldDepth + (drilling ? 1 : 0) : 1, fromWork: drilling ? previous : null };
+
     const route = `#project=${projectId}&tab=${tab}${recordRoute}`;
-    if (isAlreadyProjectDepth) history.replaceState(state, "", route);
+    if (isAlreadyProjectDepth && !drilling) history.replaceState(state, "", route);
     else history.pushState(state, "", route);
   }
   requestAnimationFrame(() => {
@@ -1582,7 +1595,7 @@ function showPortfolioSurface() {
 }
 
 function leaveProjectRoom() {
-  if (history.state?.surface === "project" && history.state?.returnToPortfolio) history.back();
+  if (history.state?.surface === "project" && history.state?.returnToPortfolio) history.go(-(history.state.projectDepth || 1));
   else {
     history.replaceState({ surface: "portfolio" }, "", "#view=map");
     showPortfolioSurface();
@@ -1593,7 +1606,7 @@ function setProjectTab(tab, updateRoute = true) {
   uiState.projectTab = tab;
   uiState.focusRecordId = null;
   renderProjectRoom();
-  if (updateRoute) history.replaceState({ surface: "project", projectId: uiState.projectId, returnToPortfolio: Boolean(history.state?.returnToPortfolio) }, "", `#project=${uiState.projectId}&tab=${tab}`);
+  if (updateRoute) history.replaceState({ projectDepth: history.state?.projectDepth, surface: "project", projectId: uiState.projectId, returnToPortfolio: Boolean(history.state?.returnToPortfolio) }, "", `#project=${uiState.projectId}&tab=${tab}`);
   requestAnimationFrame(() => projectTabs.querySelector(`[data-project-tab="${tab}"]`)?.focus());
 }
 

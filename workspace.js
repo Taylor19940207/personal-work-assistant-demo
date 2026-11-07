@@ -381,7 +381,7 @@
   const field = (label, name, value = "", type = "text", required = false) => `<label>${label}${type === "textarea" ? `<textarea name="${name}" rows="3" ${required ? "required" : ""}>${e(value)}</textarea>` : `<input name="${name}" type="${type}" value="${e(value)}" ${required ? "required" : ""}>`}</label>`;
   function display(title, intro, content, submit = "", onSubmit = null) {
     previousFocus = document.activeElement; handler = onSubmit;
-    dialog.innerHTML = `<form><header><div><small>WORKSPACE / 本機工作區</small><h2 id="w-title">${title}</h2></div><button type="button" data-w-close aria-label="關閉">×</button></header><p class="d-help">${intro}</p><div class="d-form-fields">${content}</div><p class="d-form-error" role="alert"></p>${submit ? `<footer><button type="button" data-w-close>取消</button><button type="submit" class="primary-action">${submit}</button></footer>` : ""}</form>`;
+    dialog.innerHTML = `<form><header><div><h2 id="w-title">${title}</h2></div><button type="button" data-w-close aria-label="關閉">×</button></header><p class="d-help">${intro}</p><div class="d-form-fields">${content}</div><p class="d-form-error" role="alert"></p>${submit ? `<footer><button type="button" data-w-close>取消</button><button type="submit" class="primary-action">${submit}</button></footer>` : ""}</form>`;
     if (!dialog.open) dialog.showModal();
     const firstField = dialog.querySelector("input:not([data-project-search]), textarea, select");
     if (firstField) firstField.focus();
@@ -400,9 +400,10 @@
   });
   const value = (values, key) => String(values.get(key) || "").trim();
   function newProjectDialog() {
-    display("建立新案件", "先定義交付目標。建立後再加入主要成果，日常小步驟留在各工作內。",
-      field("案件名稱", "name", "", "text", true) + field("最終要交付什麼", "goal", "", "text", true) + field("交付驗收標準", "criteria", "", "textarea") + field("預計交付日期", "due", "", "date"), "建立案件", values => {
-        const project = createProject({ name: value(values, "name"), goal: value(values, "goal"), criteria: value(values, "criteria"), due: value(values, "due") });
+    display("建立新案件", "預設以案件名稱作為交付目標。",
+      field("案件名稱", "name", "", "text", true) + field("預計交付日（選填）", "due", "", "date") +
+      '<details class="d-work-options"><summary>自訂交付目標與驗收標準</summary><div>' + field("交付目標", "goal") + field("驗收標準", "criteria", "", "textarea") + '</div></details>', "建立案件", values => {
+        const project = createProject({ name: value(values, "name"), goal: value(values, "goal") || value(values, "name"), criteria: value(values, "criteria"), due: value(values, "due") });
         openProjectRoom(project.id, "overview"); showToast("案件已建立，接著加入主要成果");
       });
   }

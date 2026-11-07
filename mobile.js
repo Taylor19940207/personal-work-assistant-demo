@@ -32,6 +32,19 @@
     document.documentElement.classList.toggle('m-layout', mobile);
     appFrame.classList.toggle('m-canvas', mobile && !project && mode === 'canvas');
     appFrame.classList.toggle('m-project', mobile && project);
+    const back = bar.querySelector(".m-back");
+    const current = project && uiState.projectTab === "board" && workspaceData[uiState.projectId]?.tasks.find(task => task.id === uiState.focusRecordId);
+    if (current) {
+      delete back.dataset.action;
+      back.dataset.deliveryAction = "work-up";
+      back.dataset.work = current.id;
+      back.textContent = "← 上一層";
+      const parent = workspaceData[uiState.projectId].tasks.find(task => task.id === current.parentId);
+      back.setAttribute("aria-label", parent ? "返回「" + parent.title + "」" : "返回案件工作");
+    } else {
+      delete back.dataset.deliveryAction; delete back.dataset.work; back.removeAttribute("aria-label");
+      back.dataset.action = "leave-project"; back.textContent = "← 全局";
+    }
     const select = bar.querySelector('select');
     const selected = uiState.focusProjectId || '';
     const options = `<option value="">全部案件</option>` + getPortfolioProjects().map(p => `<option value="${e(p.id)}">${e(p.name)}</option>`).join('');
@@ -102,12 +115,12 @@
       item('操作說明', 'data-m-action="help"'));
     if (action === 'help') {
       controls.querySelector('details').open = false;
-      showMenu('操作說明', '<p>案件：展開案件，查看各項工作的狀態；點工作進入操作。</p><p>拓樸：單指拖曳、雙指縮放。點成果進入工作，＋展開子成果；連線表示所屬關係。</p><p>歸位：重新定位全局。進出工作時會保留原來的查看位置。</p><p>紀錄：依案件查看歷史。工作狀態可用狀態選單調整，文件可直接在工作內加入。</p>');
+      showMenu('操作說明', '<p>案件：展開案件，查看各項工作的狀態；點工作進入操作。</p><p>拓樸：單指拖曳、雙指縮放。點成果進入工作，＋展開子工作；連線表示所屬關係。</p><p>歸位：重新定位全局。進出工作時會保留原來的查看位置。</p><p>紀錄：依案件查看歷史。工作狀態可用狀態選單調整，文件可直接在工作內加入。</p>');
     }
     if (action === 'add') {
       if (uiState.surface !== 'project') return workspaceManager.newProjectDialog();
       showMenu('新增到目前工作區', item('記錄進度', 'data-m-action="progress"') +
-        item('記錄問題', 'data-m-action="issue"') + item('新增成果', 'data-m-action="work"'));
+        item('記錄問題', 'data-m-action="issue"') + item('新增工作', 'data-m-action="work"'));
     }
     if (action === 'issue') openCaptureDialog('issue');
     if (action === 'work') openCaptureDialog('task');

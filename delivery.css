@@ -180,3 +180,12 @@
 .d-home-row small { color: var(--paper-2); }
 .d-home-row:is(:hover,:focus-visible) strong { color: var(--signal); }
 .d-dialog [data-correction]:not([hidden]) { display: grid; gap: 12px; }
+
+.d-home-entry { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
+.d-home-entry .d-home-row { flex: 1; min-width: 0; border-bottom: 0; overflow-wrap: anywhere; }
+.d-home-follow { flex: none; min-height: 44px; min-width: 44px; color: var(--signal); border: 0; padding: 4px 8px; background: transparent; cursor: pointer; }
+.d-work-options summary { display: flex; align-items: center; min-height: 44px; color: var(--paper-2); cursor: pointer; }
+.d-work-options summary::before { content: "▸"; margin-right: 6px; }
+.d-work-options[open] summary::before { content: "▾"; }
+.d-work-options > div { display: grid; gap: 12px; }
+#d-dialog-title:focus { outline: none; }
