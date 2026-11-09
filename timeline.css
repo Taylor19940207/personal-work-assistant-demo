@@ -12,10 +12,10 @@
   border-radius: 12px;
   overflow: clip;
 }
-.chron h3 { margin: 0; font-size: clamp(19px, 2vw, 30px); letter-spacing: .025em; }
+.chron h3 { margin: 0; font-size: clamp(19px, calc(2vw / var(--app-scale)), 30px); letter-spacing: .025em; }
 .chron > h3, .chron-empty { margin: 18px; }
 .chron-head, .chron-toolbar, .chron-detail > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.chron-head { padding: 21px clamp(14px, 2vw, 32px) 8px; }
+.chron-head { padding: 21px clamp(14px, calc(2vw / var(--app-scale)), 32px) 8px; }
 .chron-head time, .chron-tick, .chron-event time { font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 .chron-head time { display: inline-block; color: var(--chron-muted); font-size: 12px; margin-top: 5px; }
 .chron button { font: inherit; color: inherit; background: transparent; border: 0; cursor: pointer; touch-action: manipulation; }
@@ -24,7 +24,7 @@
 .chron-switch { padding: 3px; background: #091317; border-radius: 8px; }
 .chron-switch button, .chron-nav button { min-height: 34px; padding: 0 12px; font-size: 13px; border-radius: 6px; color: var(--chron-muted); }
 .chron-switch button[aria-pressed="true"] { color: #a3f1df; background: #223c3e; }
-.chron-toolbar { padding: 4px clamp(14px, 2vw, 32px) 13px; flex-wrap: wrap; }
+.chron-toolbar { padding: 4px clamp(14px, calc(2vw / var(--app-scale)), 32px) 13px; flex-wrap: wrap; }
 .chron-legend { display: flex; gap: 15px; flex-wrap: wrap; color: var(--chron-muted); font-size: 12px; }
 .chron-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .chron-mark { --ink: #b5cbce; flex: none; box-sizing: border-box; width: 8px; height: 8px; display: inline-block; background: var(--ink); border-radius: 50%; }
@@ -32,7 +32,7 @@
 .chron-mark.plan { --ink: #efc479; transform: rotate(45deg); border: 1.5px solid var(--ink); border-radius: 1px; background: #132023; }
 .chron-mark.issue { --ink: #fa9b87; border-radius: 2px; }
 .chron-row { display: grid; grid-template-columns: var(--chron-label) minmax(0,1fr); border-top: 1px solid var(--chron-rule); }
-.chron-label { padding: 14px clamp(10px, 1.8vw, 28px); min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; text-align: left; gap: 5px; }
+.chron-label { padding: 14px clamp(10px, calc(1.8vw / var(--app-scale)), 28px); min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; text-align: left; gap: 5px; }
 .chron-label strong { font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
 .chron-label small, .chron-none { color: var(--chron-muted); font-size: 12px; }
 .chron-label small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -102,7 +102,7 @@
 .chron-node[aria-expanded="true"] { background: #83e8d314; border-radius: 6px; }
 .chron-more { align-self: flex-start; position: relative; left: var(--anchor); transform: translateX(-50%); margin: 1px 0 2px; padding: 2px 5px; border-radius: 4px; background: #22393c; color: #b6dbd6; font: 11px/1.3 ui-monospace, monospace; }
 .chron-none { grid-column: 1/-1; text-align: center; padding: 30px 8px 14px; }
-.chron-detail { padding: 12px clamp(12px,2vw,32px); background: #172a2e; border-block: 1px solid #416163; }
+.chron-detail { padding: 12px clamp(12px,calc(2vw / var(--app-scale)),32px); background: #172a2e; border-block: 1px solid #416163; }
 .chron-detail header { flex-wrap: wrap; color: var(--chron-accent); font-size: 14px; }
 .chron-detail header button, .chron-file { padding: 8px; font-size: 12px; }
 .chron-event > :first-child {

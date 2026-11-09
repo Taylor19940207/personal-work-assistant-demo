@@ -5,7 +5,7 @@
 .w-project-tools { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .w-project-tools .d-action { min-height: 30px; padding: 5px 9px; font-size: 11px; }
 .w-project-tools span { color: var(--warning); font-size: 12px; }
-.w-dialog { width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line-strong); border-radius: 12px; color: var(--paper); background: var(--canvas-2); box-shadow: 0 24px 100px #0008; }
+.w-dialog { width: min(640px, calc(var(--app-width) - 24px)); max-height: calc(var(--app-height) - 32px); padding: 0; border: 1px solid var(--line-strong); border-radius: 12px; color: var(--paper); background: var(--canvas-2); box-shadow: 0 24px 100px #0008; }
 .w-dialog::backdrop { background: #020709b8; backdrop-filter: blur(4px); }
 .w-dialog form { padding: 28px; }
 .w-dialog header { display: flex; justify-content: space-between; gap: 16px; }
@@ -20,7 +20,7 @@
 .w-dialog footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 .w-dialog footer button { min-height: 44px; font-size: 13px; }
 .w-manager-tools, .w-file-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.w-project-list { display: grid; max-height: min(36dvh, 370px); overflow: auto; }
+.w-project-list { display: grid; max-height: min(calc(36dvh / var(--app-scale)), 370px); overflow: auto; }
 .w-project-row { display: flex; align-items: center; gap: 14px; padding: 18px 0; border-bottom: 1px solid var(--line); }
 .w-project-row > .d-action { flex: 0 0 auto; }
 .w-project-row strong { font-size: 15px; }

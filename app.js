@@ -1025,28 +1025,40 @@ function applyTransform() {
 let mapCameraReady = false;
 let mapCameraSize = null;
 let portfolioScroll = { page: 0, list: 0 };
-function resizeMapCamera() {
+// Pointer coordinates and DOMRects are visual pixels. Pan, scroll and CSS
+// translations are stored in layout pixels, independently of browser zoom.
+function appLayoutScale() {
+  return parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+}
+
+function mapPoint(clientX, clientY) {
   const rect = mapViewport.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
+  const scale = appLayoutScale();
+  return { x: (clientX - rect.left) / scale, y: (clientY - rect.top) / scale };
+}
+
+function resizeMapCamera() {
+  const width = mapViewport.clientWidth, height = mapViewport.clientHeight;
+  if (!width || !height) return;
   if (!mapCameraReady) return fitMap();
   if (mapCameraSize) {
-    uiState.x += (rect.width - mapCameraSize.width) / 2;
-    uiState.y += (rect.height - mapCameraSize.height) / 2;
+    uiState.x += (width - mapCameraSize.width) / 2;
+    uiState.y += (height - mapCameraSize.height) / 2;
   }
-  mapCameraSize = { width: rect.width, height: rect.height };
+  mapCameraSize = { width, height };
   applyTransform();
 }
 
 function fitMap() {
-  const rect = mapViewport.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
+  const width = mapViewport.clientWidth, height = mapViewport.clientHeight;
+  if (!width || !height) return;
   mapCameraReady = true;
-  mapCameraSize = { width: rect.width, height: rect.height };
-  const scaleX = (rect.width - 30) / topologyLayout.width;
-  const scaleY = (rect.height - 20) / topologyLayout.height;
+  mapCameraSize = { width, height };
+  const scaleX = (width - 30) / topologyLayout.width;
+  const scaleY = (height - 20) / topologyLayout.height;
   uiState.scale = Math.min(1, Math.max(.55, Math.min(scaleX, scaleY)));
-  uiState.x = Math.max(10, (rect.width - topologyLayout.width * uiState.scale) / 2);
-  uiState.y = Math.max(2, (rect.height - topologyLayout.height * uiState.scale) / 2);
+  uiState.x = Math.max(10, (width - topologyLayout.width * uiState.scale) / 2);
+  uiState.y = Math.max(2, (height - topologyLayout.height * uiState.scale) / 2);
   applyTransform();
 }
 
@@ -1056,10 +1068,8 @@ function setZoom(nextScale) {
 }
 
 function setZoomAt(nextScale, clientX, clientY) {
-  const rect = mapViewport.getBoundingClientRect();
+  const { x: pointerX, y: pointerY } = mapPoint(clientX, clientY);
   const previous = uiState.scale;
-  const pointerX = clientX - rect.left;
-  const pointerY = clientY - rect.top;
   const worldX = (pointerX - uiState.x) / previous;
   const worldY = (pointerY - uiState.y) / previous;
   uiState.scale = Math.min(1.6, Math.max(.55, nextScale));
@@ -1642,7 +1652,7 @@ function focusProjectRecord(recordId) {
   const roomRect = projectRoomContent.getBoundingClientRect();
   const targetRect = target.getBoundingClientRect();
   if (projectRoomContent.scrollHeight > projectRoomContent.clientHeight) {
-    projectRoomContent.scrollTo({ top: projectRoomContent.scrollTop + targetRect.top - roomRect.top - roomRect.height / 2 + targetRect.height / 2, behavior: reducedMotion ? "auto" : "smooth" });
+    projectRoomContent.scrollTo({ top: projectRoomContent.scrollTop + (targetRect.top - roomRect.top - roomRect.height / 2 + targetRect.height / 2) / appLayoutScale(), behavior: reducedMotion ? "auto" : "smooth" });
   } else {
     window.scrollTo({ top: window.scrollY + targetRect.top - 120, behavior: reducedMotion ? "auto" : "smooth" });
   }
@@ -2386,8 +2396,8 @@ function renderCommandResults(query = "") {
   if (selectedResult) {
     const containerRect = commandResults.getBoundingClientRect();
     const selectedRect = selectedResult.getBoundingClientRect();
-    if (selectedRect.top < containerRect.top) commandResults.scrollTop -= containerRect.top - selectedRect.top;
-    else if (selectedRect.bottom > containerRect.bottom) commandResults.scrollTop += selectedRect.bottom - containerRect.bottom;
+    if (selectedRect.top < containerRect.top) commandResults.scrollTop -= (containerRect.top - selectedRect.top) / appLayoutScale();
+    else if (selectedRect.bottom > containerRect.bottom) commandResults.scrollTop += (selectedRect.bottom - containerRect.bottom) / appLayoutScale();
   }
 }
 
@@ -2924,7 +2934,7 @@ scheduleForm.addEventListener("submit", event => {
 (() => {
   const pointers = new Map();
   let pan = null, pinch = null, moved = false, suppressUntil = 0;
-  const point = event => ({ x: event.clientX, y: event.clientY });
+  const point = event => mapPoint(event.clientX, event.clientY);
   function pair() {
     const [a, b] = [...pointers.values()];
     return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, distance: Math.hypot(a.x - b.x, a.y - b.y) };
@@ -2932,10 +2942,10 @@ scheduleForm.addEventListener("submit", event => {
   function rebase() {
     pan = pinch = null;
     if (pointers.size >= 2) {
-      const center = pair(), rect = mapViewport.getBoundingClientRect();
+      const center = pair();
       pinch = { distance: Math.max(1, center.distance), scale: uiState.scale,
-        worldX: (center.x - rect.left - uiState.x) / uiState.scale,
-        worldY: (center.y - rect.top - uiState.y) / uiState.scale };
+        worldX: (center.x - uiState.x) / uiState.scale,
+        worldY: (center.y - uiState.y) / uiState.scale };
       moved = true;
     } else if (pointers.size === 1) {
       const pointer = pointers.values().next().value;
@@ -2968,12 +2978,12 @@ scheduleForm.addEventListener("submit", event => {
     if (!pointer) return;
     Object.assign(pointer, point(event));
     if (pinch && pointers.size >= 2) {
-      const center = pair(), rect = mapViewport.getBoundingClientRect();
+      const center = pair();
       uiState.scale = Math.min(1.6, Math.max(.55, pinch.scale * center.distance / pinch.distance));
-      uiState.x = center.x - rect.left - pinch.worldX * uiState.scale;
-      uiState.y = center.y - rect.top - pinch.worldY * uiState.scale;
+      uiState.x = center.x - pinch.worldX * uiState.scale;
+      uiState.y = center.y - pinch.worldY * uiState.scale;
     } else if (pan) {
-      const dx = event.clientX - pan.x, dy = event.clientY - pan.y;
+      const dx = pointer.x - pan.x, dy = pointer.y - pan.y;
       if (!moved && Math.hypot(dx, dy) < (event.pointerType === "mouse" ? 2 : 6)) return;
       moved = true;
       uiState.x = pan.mapX + dx; uiState.y = pan.mapY + dy;

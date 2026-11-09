@@ -97,7 +97,7 @@
     for (const row of surface.querySelectorAll(selector)) {
       const old = before.get(row.dataset.workRow || row.dataset.taskId), rect = row.getBoundingClientRect();
       if (!old) { enter(row); continue; }
-      const x = old.left - rect.left, y = old.top - rect.top;
+      const x = (old.left - rect.left) / appLayoutScale(), y = (old.top - rect.top) / appLayoutScale();
       if (Math.abs(x) + Math.abs(y) > .5) animate(row, [{ translate: `${x}px ${y}px` }, { translate: "0 0" }], 200);
     }
   }

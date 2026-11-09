@@ -1010,7 +1010,7 @@
       renderTopology(); renderMobileOverview();
       if (before) {
         const after = mapStage.querySelector(`[data-delivery-action="expand"][data-work="${CSS.escape(id)}"]`)?.closest(".d-map-node")?.getBoundingClientRect();
-        if (after) { uiState.x += before.left - after.left; uiState.y += before.top - after.top; applyTransform(); }
+        if (after) { uiState.x += (before.left - after.left) / appLayoutScale(); uiState.y += (before.top - after.top) / appLayoutScale(); applyTransform(); }
       }
       if (uiState.surface === "project") renderProjectRoom();
       window.interfaceMotion?.settleMap(motion);
