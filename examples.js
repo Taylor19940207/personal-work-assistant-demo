@@ -11,7 +11,8 @@
       const row = (title,state="missing",note="") => ({id:id(),title,state,note,refs:[],seenOutput:""});
       function project(name,goal,works) {
         const key=id();
-        projects.push({id:key,name,color:"#83e8d3",isSample:true});
+        const colors=["#83e8d3","#c1b1ee","#eac184","#95c7df"];
+        projects.push({id:key,name,color:colors[projects.length % colors.length],isSample:true});
         return workspaceData[key]={deliveryModelVersion:1,lifecycle:"active",goal:{title:goal},tasks:works,files:[],issues:[],activity:[],decisions:[],timeline:[]};
       }
       function list(task,title,person,items) {
@@ -66,6 +67,31 @@
       const tax=project("範例｜稅理士報告","取得年度報告並交回客戶",[audit]);
       const ledger=row("決算書","checking");ledger.refs=[await document(tax,audit,"FY_final.txt","年度決算資料示例")];
       list(audit,"年度資料","稅理士",[ledger,row("銀行流水","revise","尚缺最後一個月份"),row("異常交易說明","ready","財務已電話說明")]);
+
+      // A shared date can include a receipt, a review and an unrelated case milestone.
+      function relativeDay(offset) {
+        const date = new Date();
+        date.setDate(date.getDate() + offset);
+        return date.toLocaleDateString("sv-SE");
+      }
+      function milestone(task, title, field, offset) {
+        task.milestones ||= [];
+        task.milestones.push({id:id(),title,[field]:relativeDay(offset)});
+      }
+      permit.deadlineDate=relativeDay(7);
+      site.deadlineDate=relativeDay(4);
+      company.deadlineDate=relativeDay(9);
+      tax.deadlineDate=relativeDay(6);
+      milestone(submit,"確認送件範圍","actualDate",-4);
+      milestone(submit,"確認簽署人","committedDate",2);
+      milestone(report,"收到會計師底稿","actualDate",-2);
+      milestone(layout,"完成手機版預覽","actualDate",-2);
+      milestone(launch,"客戶檢視首頁","committedDate",2);
+      milestone(setup,"收到設立委託書","actualDate",-3);
+      milestone(admin,"確認公司名稱","actualDate",-2);
+      milestone(audit,"與稅理士核對流水","committedDate",2);
+      certificate.requests[0].due=relativeDay(2);
+      certificate.requests[0].expectedDate=relativeDay(2);
 
       await new Promise((resolve,reject)=>{
         const open=indexedDB.open("personal-assistant-example-attachments",1);

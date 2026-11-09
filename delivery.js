@@ -279,7 +279,7 @@
   renderList = function() {
     if (uiState.view === "mine") { listView.innerHTML = myWorkHome(); return; }
     const projects = uiState.focusProjectId ? getPortfolioProjects().filter(project => project.id === uiState.focusProjectId) : getPortfolioProjects();
-    listView.innerHTML = `<div class="event-tree">${projects.map(project => {
+    listView.innerHTML = `${workTimeline.render(projects)}<details class="chron-history"><summary>完整紀錄</summary><div class="event-tree">${projects.map(project => {
       const data = workspaceData[project.id];
       const items = uiState.mode === "issues" ? data.issues.filter(issue => issue.status === "open") : data.activity;
       return `<details class="tree-project" open><summary><strong>${e(project.name)}</strong><span>${e(getProjectSnapshot(project).state)}</span></summary><div class="tree-events">${items.map(item => {
@@ -288,7 +288,7 @@
         const tab = linkedIssue ? "records" : item.taskId ? "board" : "activity";
         return `<button class="tree-event" type="button" data-open-project-tab="${tab}" data-project-id="${e(project.id)}" data-record-id="${e(linkedIssue?.id || item.taskId || item.id)}"><time>${e(item.date)}</time><strong>${e(item.title)}</strong><small>${linkedIssue ? "問題處理" : "查看紀錄"}</small></button>`;
       }).join("") || `<p class="d-help">${uiState.mode === "issues" ? "目前沒有未解問題" : "尚無紀錄"}</p>`}</div></details>`;
-    }).join("")}</div>`;
+    }).join("")}</div></details>`;
   };
   const oldAttention = getAttentionItems;
   getAttentionItems = function() {
@@ -333,6 +333,7 @@
     const canDeliver = !s.incomplete.length && !s.changed;
     return `<div class="project-surface d-overview">
       <section class="d-goal-summary"><div><p class="d-eyebrow">交付目標</p><h2>${e(data.goal.title || project.name)}</h2>${data.goal.criteria ? `<p>${e(data.goal.criteria)}</p>` : ""}<div class="d-goal-meta"><span>預計交付 ${dateLabel(data.deadlineDate)}</span><span>${s.direct.length - s.incomplete.length} / ${s.direct.length} 個必要成果已完成</span>${data.goal.acceptedAt ? `<span>實際交付 ${dateLabel(data.goal.acceptedAt.slice(0, 10))}</span>` : ""}</div></div><div class="d-actions">${action("設定目標", "goal")}${data.lifecycle === "completed" || canDeliver ? action(data.lifecycle === "completed" ? "重新開啟案件" : "記錄對外交付", "accept-goal") : ""}</div></section>
+      ${workTimeline.render([project], project.id)}
       ${(data.goal.history || []).some(entry => entry.action === "accept") ? `<details><summary>歷次對外交付</summary>${data.goal.history.filter(entry => entry.action === "accept").map(entry => `<p>${e(entry.date || entry.at.slice(0,10))} · ${e(entry.recipient || "未記錄對象")} · ${e(entry.result)}</p>${(entry.artifacts || []).map(ref => {
         const version = documentModel.find(ref.documentId)?.versions.find(v => v.id === ref.versionId);
         if (version?.blobId) return `<button type="button" class="d-action" data-workspace-action="open-file" data-file="${e(ref.documentId)}" data-version="${e(ref.versionId)}">${e(ref.name)} ↗</button>`;
@@ -415,6 +416,7 @@
       ${data.tasks.some(work=>work.requests.some(req=>req.items?.some(item=>item.sourceId===task.id))) ? action("交回工作結果","list-output",task.id) : ""}
       ${signals(data, task)}${dependencyRows(data, task)}
 
+      ${workTimeline.render([project], project.id, task)}
       <div class="d-detail-grid"><div class="d-detail-main">
         <section class="d-section"><div class="d-section-title"><h3>${task.status === "done" ? "完成結果" : "工作進度"}</h3>${action("更新現況", "progress", task.id)}</div>${task.detail || task.status === "done" ? `<p class="d-current">${e(workCurrent(task))}</p>` : ""}${task.criteria ? `<p class="d-help">完成標準：${e(task.criteria)}</p>` : ""}${task.status === "done" && task.detail ? `<details><summary>完成前最後現況</summary><p>${e(task.detail)}</p></details>` : ""}</section>
         ${task.status === "review" && !reviewable(assignmentOf(task) || {}) ? `<section class="d-section d-review-panel"><h3>整項成果待確認</h3><p>${pendingReview ? `${e(pendingReview.person)} · ${e(pendingReview.request)}<br>預計回覆 ${dateLabel(pendingReview.expectedDate)}` : "舊版待確認工作，尚無完整確認紀錄。"}</p><div class="d-actions">${action("需修改，回到進行中", "return", task.id)}${action("確認成果已完成", "complete", task.id)}</div></section>` : ""}

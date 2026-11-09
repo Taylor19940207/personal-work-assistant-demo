@@ -8,7 +8,7 @@
   bar.innerHTML = `<button type="button" class="m-back" data-action="leave-project">← 全局</button><select class="m-case-select" aria-label="查看案件"></select><button type="button" data-action="open-command">搜尋</button><button type="button" data-doc-action="library">文件</button><button type="button" data-m-action="add">＋新增</button><button type="button" data-m-action="menu">更多</button>`;
   document.querySelector('.command-bar').append(bar);
   const views = document.createElement('nav'); views.className = 'm-views'; views.setAttribute('aria-label', '全局檢視');
-  views.innerHTML = ['mine:我的工作', 'tree:案件', 'canvas:拓樸', 'list:紀錄'].map(item => { const [id, name] = item.split(':'); return `<button type="button" data-m-view="${id}" aria-pressed="false">${name}</button>`; }).join('');
+  views.innerHTML = ['mine:我的工作', 'tree:案件', 'canvas:拓樸', 'list:時間軸'].map(item => { const [id, name] = item.split(':'); return `<button type="button" data-m-view="${id}" aria-pressed="false">${name}</button>`; }).join('');
   workspace.prepend(views);
   const controls = document.createElement('div'); controls.className = 'm-map-controls';
   controls.innerHTML = `<button type="button" data-action="fit">歸位</button><details><summary>工具</summary><div><button type="button" data-action="zoom-in">＋ 放大</button><button type="button" data-action="zoom-out">− 縮小</button><button type="button" data-m-action="help">操作說明</button></div></details>`;

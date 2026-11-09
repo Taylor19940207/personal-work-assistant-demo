@@ -247,13 +247,14 @@ function saveWorkspaceData() {
   }
 }
 
+const initialPortfolioView = location.hash ? "map" : new URLSearchParams(location.search).get("view") === "timeline" ? "list" : "mine";
 const uiState = {
   scale: 0.85,
   x: 20,
   y: 0,
   view: "map",
-  preferredView: location.hash ? "map" : "mine",
-  mobilePreferredView: location.hash ? "map" : "mine",
+  preferredView: initialPortfolioView,
+  mobilePreferredView: initialPortfolioView,
   mobileExpandedProjectId: null,
   mode: "portfolio",
   surface: "portfolio",
@@ -1091,7 +1092,7 @@ function setView(view, { persistPreference = true } = {}) {
     button.disabled = false;
     button.title = "";
     if (button.dataset.view === "map") button.textContent = isMobile ? "全局路徑" : "拓撲圖";
-    if (button.dataset.view === "list") button.textContent = isMobile ? "完整列表" : "記錄列表";
+    if (button.dataset.view === "list") button.textContent = "時間軸";
   });
   document.querySelector("#workspace-title").textContent = view === "mine" ? "我的工作" : "所有案子，現在在哪裡";
   if (showList) renderList();
