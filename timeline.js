@@ -223,7 +223,11 @@ const workTimeline = (() => {
     const control=event.target.closest("[data-chron-mode],[data-chron-nav],[data-chron-close],[data-chron-week],[data-chron-bin]");
     if (!control) return;
     const root=control.closest("[data-chron]"), meta=scopes.get(root.dataset.chron), state=states.get(meta.key);
+    const previous = state.selected;
     const d=control.dataset;
+    // Replacing a long detail above the clicked row removes height from the
+    // scroll surface. Keep the incoming control at its previous screen position.
+    const top = control.getBoundingClientRect().top;
     let focusSelector;
     if (d.chronBin!==undefined) {
       const next={i:Number(d.chronBin),row:Number(d.chronRow??-1)};
@@ -244,7 +248,18 @@ const workTimeline = (() => {
       state.selected=null;
     }
     root.innerHTML=chart(meta);
-    root.querySelector(focusSelector)?.focus({preventScroll:true});
+    const nextControl = root.querySelector(focusSelector);
+    nextControl?.focus({preventScroll:true});
+    if (d.chronBin !== undefined && nextControl) {
+      if (previous && previous.row < Number(d.chronRow ?? -1)) {
+        const surface = meta.scope === "all" ? listView : projectRoomContent;
+        const scroller = surface.scrollHeight > surface.clientHeight ? surface : document.scrollingElement;
+        if (scroller) scroller.scrollTop += (nextControl.getBoundingClientRect().top - top) / appLayoutScale();
+      }
+      if (state.selected) root.querySelector(".chron-detail > header")?.scrollIntoView({block:"nearest", behavior:"instant"});
+    } else if (d.chronClose !== undefined) {
+      nextControl?.scrollIntoView({block:"nearest", behavior:"instant"});
+    }
   });
   return {render};
 })();

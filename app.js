@@ -1606,6 +1606,11 @@ function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRec
     else history.pushState(state, "", route);
   }
   renderProjectRoom();
+  if (!sameCase && !focusRecordId) {
+    projectRoomContent.scrollTop = 0;
+    projectRoom.scrollTop = 0;
+    window.scrollTo({top:0, behavior:"instant"});
+  }
   requestAnimationFrame(() => {
     if (focusRecordId) focusProjectRecord(focusRecordId);
     else projectRoom.querySelector("h1")?.focus?.();
