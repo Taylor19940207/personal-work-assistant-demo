@@ -15,11 +15,12 @@
 .d-status[data-status="done"] { color: var(--success); }
 .d-signals { display: flex; gap: 8px 16px; flex-wrap: wrap; color: var(--paper-2); font-size: 12px; line-height: 1.7; }
 .d-signals:empty { display: none; }
-.d-overview h2, .d-work-detail h2 { font-size: clamp(22px, 2vw, 30px); line-height: 1.35; margin: 8px 0 14px; letter-spacing: -.02em; }
+.d-overview h2, .d-work-detail h2 { overflow-wrap: anywhere; font-size: clamp(22px, 2vw, 30px); line-height: 1.35; margin: 8px 0 14px; letter-spacing: -.02em; }
 .d-overview h3, .d-work-detail h3 { margin: 0 0 8px; font-size: 16px; line-height: 1.5; }
 .d-overview p, .d-work-detail p { line-height: 1.7; overflow-wrap: anywhere; }
 .d-goal-summary { display: flex; gap: 32px; align-items: flex-start; justify-content: space-between; padding-bottom: 32px; border-bottom: 1px solid var(--line); }
-.d-goal-summary > div:first-child { min-width: 0; }
+.d-goal-summary > div:first-child, .d-work-heading > div:first-child { min-width: 0; max-width: 100%; }
+.project-heading-copy, .d-case-link, .d-breadcrumb .d-action { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .d-goal-summary p:not(.d-eyebrow) { color: var(--paper-2); font-size: 14px; white-space: pre-wrap; }
 .d-goal-meta { display: flex; gap: 12px 26px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 .d-overview-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: clamp(24px, 3vw, 64px); padding-top: 30px; }
@@ -74,6 +75,8 @@
 .d-work-detail summary { cursor: pointer; padding: 8px 0; color: var(--muted); }
 .d-round { border-top: 1px solid var(--line); padding: 14px 0 6px; }
 .d-round a { color: var(--signal); text-underline-offset: 3px; }
+.d-milestone > div { min-width: 0; overflow-wrap: anywhere; }
+.d-milestone > .d-action { flex: none; }
 .d-milestone { display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .d-milestone strong { font-size: 14px; }
 .d-milestone p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }

@@ -31,7 +31,7 @@
 .w-drop-zone { width: 100%; min-height: 88px; margin: 8px 0 24px; flex-direction: row; justify-content: space-between; gap: 20px; padding: 20px 24px; }
 .w-evidence-library { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
 .w-evidence-library .evidence-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 24px; min-width: 0; padding: 20px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; }
-.w-file-identity { min-width: 0; }
+.w-file-identity { min-width: 0; overflow-wrap: anywhere; }
 .w-file-identity strong { display: block; overflow-wrap: anywhere; font-size: 14px; }
 .w-file-identity small { display: block; font-size: 12px; line-height: 1.7; color: var(--muted); margin-top: 7px; }
 .w-evidence-library .evidence-item > details, .w-evidence-library .evidence-item > small { grid-column: 1 / -1; margin-top: 0; }

@@ -5,6 +5,7 @@
   --chron-label: clamp(145px, 18%, 290px);
   margin: 0 0 24px;
   min-width: 0;
+  container-type: inline-size;
   color: #e0ebeb;
   background: #101c20;
   border: 1px solid var(--chron-rule);
@@ -36,70 +37,105 @@
 .chron-label small, .chron-none { color: var(--chron-muted); font-size: 12px; }
 .chron-label small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chron button.chron-label:hover { color: var(--chron-accent); background: #182a2e; }
-.chron-plot { position: relative; isolation: isolate; min-width: 0; min-height: 86px; background: repeating-linear-gradient(to right, #253439 0 1px, transparent 1px calc(100% / var(--cols))); }
-.chron-plot::before { content: ""; position: absolute; top: 38%; left: 0; right: 0; border-top: 1px dashed #48606570; z-index: -1; }
-.chron-today { position: absolute; z-index: -1; left: calc(var(--col) * 100% / var(--cols)); width: calc(100% / var(--cols)); height: 100%; top: 0; background: #78d7c40c; border-inline: 1px solid #80e2cd22; pointer-events: none; }
-.chron-line { position:absolute; height:2px; top:38%; background:linear-gradient(to right, #5c7d83, #8cb9b7 68%, #658482); pointer-events:none; }
-.chron-axis { background: #111f23; }
-.chron-axis .chron-plot { display: grid; grid-template-columns: repeat(var(--cols),minmax(0,1fr)); min-height: 62px; }
-.chron-axis .chron-plot::before { display:none; }
-.chron .chron-tick { display:flex; min-width:0; align-items:center; justify-content:flex-end; flex-direction:column; gap:5px; padding: 0; font:11px ui-monospace,monospace; color:#abc1c2; }
-.chron-tick i { width: min(54%, 44px); background: #68898e; border-radius: 2px 2px 0 0; }
-.chron-tick em { color:#a1f1de; font: 10px sans-serif; }
-.chron-tick:hover i { background:var(--chron-accent); }
-.chron-node { position:absolute; padding:0; min-height:58px; text-align:center; top:calc(38% - 16px); left:calc((var(--col) + .5) * 100% / var(--cols)); width:calc(100% / var(--cols)); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; }
-.chron-node small { display:block; max-width:100%; padding:0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; color:#cadad9; }
-.chron-node:hover small, .chron-node[aria-expanded="true"] small { color:#a0f6e1; }
-.chron-node[aria-expanded="true"] { background:#83e8d314; border-radius:6px; }
-.chron-none { display:block; text-align:center; padding-top:36px; }
-.chron-detail { padding: 12px clamp(12px,2vw,32px); background: #172a2e; border-block: 1px solid #416163; }
-.chron-detail header { color:var(--chron-accent); font-size:14px; }
-.chron-detail header button,.chron-file { padding:8px; font-size:12px; }
-.chron-event > :first-child { width:100%; display:grid; grid-template-columns:44px 10px 1fr auto; align-items:baseline; gap:10px; padding:9px 0; text-align:left; color:#e0ebeb; }
-.chron-event time, .chron-event small { font-size:12px; color:var(--chron-muted); }
-.chron-event strong { font-size:14px; }
-.chron-event small { display:block; overflow-wrap:anywhere; margin-top:3px; }
-.chron-event button:hover, .chron .chron-file { color:var(--chron-accent); }
-.chron-history { margin:16px 0; }
-.chron-history > summary { padding:10px 0; cursor:pointer; }
-@media(max-width:719px){
-  .chron { --chron-label:clamp(78px,23%,132px); border-radius:8px; margin-bottom:16px; }
-  .chron-head { padding:13px 10px 8px; }
-  .chron-head time { font-size:10px; }
-  .chron-toolbar { gap:3px; padding:3px 10px 10px; }
-  .chron-legend { gap:10px; font-size:10px; }
-  .chron-switch button,.chron-nav button { min-height:38px; padding:0 9px; }
-  .chron-label { padding:8px; }
-  .chron-label strong { font-size:12px; }
-  .chron-label small { font-size:10px; }
-  .chron-axis .chron-plot { min-height:55px; }
-  .chron .chron-tick { font-size:9px; }
-  .chron-node small { font-size:10px; }
+.chron-plot {
+  --rail-y: 18px;
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  align-items: start;
+  background: repeating-linear-gradient(to right, #253439 0 1px, transparent 1px calc(100% / var(--cols)));
 }
-.chron-row:not(.chron-axis) .chron-plot { min-height:calc(44px + var(--tracks,1)*34px); }
-.chron-row:not(.chron-axis) .chron-plot::before,.chron-line { top:22px; }
-.chron-node {
-  top:16px; left:calc(var(--col)*100% / var(--cols)); transform:none;
-  min-height:46px; justify-content:flex-start; align-items:stretch; text-align:left;
+.chron-plot::before, .chron-line {
+  position: absolute;
+  top: var(--rail-y);
+  pointer-events: none;
 }
-.chron-node::before { content:""; position:absolute; z-index:-1; top:6px; bottom:27px; left:14%; border-left:1px solid #799193; }
-.chron-branch { position:relative; display:block; height:34px; }
-.chron-branch .chron-mark { position:absolute; top:2px; left:14%; margin-left:-4px; }
-.chron-branch small { position:absolute; left:12%; right:1px; top:14px; padding:0; line-height:16px; }
-.chron-branch b { position:absolute; left:calc(14% + 10px); top:-1px; color:#c9e3de; font:10px/14px ui-monospace,monospace; background:#213c40; border-radius:4px; padding:0 3px; }
-.chron-event > :first-child { grid-template-columns:76px 10px 1fr auto; }
-@media(max-width:719px){
-  .chron .chron-row:not(.chron-axis) .chron-plot { min-height:calc(36px + var(--tracks,1)*31px); }
-  .chron-branch { height:31px; }
-  .chron-node::before { bottom:25px; }
-}
-.chron-branch small { width:calc(var(--room,1)*100% - 16%); max-width:none; right:auto; }
-@media(min-width:720px){
-  .app-frame.is-list-view:not(.is-my-work) .workspace:not(.is-project-depth) { grid-template-rows:auto minmax(0,1fr); }
-}
-.chron-row:not(.chron-axis) .chron-label strong { border-inline-start:2px solid var(--lane-color); padding-inline-start:8px; }
+.chron-plot::before { content: ""; inset-inline: 0; border-top: 1px dashed #48606570; z-index: -1; }
 .chron-line {
+  height: 2px;
   background: linear-gradient(to right, var(--lane-color) 0 var(--past), transparent var(--past)),
               repeating-linear-gradient(to right, var(--lane-color) 0 4px, transparent 4px 8px);
-  opacity:.62;
+  opacity: .64;
+}
+.chron-today {
+  position: absolute; z-index: -1; inset-block: 0;
+  left: calc(var(--col) * 100% / var(--cols)); width: calc(100% / var(--cols));
+  background: #78d7c40c; border-inline: 1px solid #80e2cd22; pointer-events: none;
+}
+.chron-axis { background: #111f23; }
+.chron-axis .chron-plot { align-items: stretch; }
+.chron-axis .chron-plot::before { display: none; }
+.chron .chron-tick {
+  display: grid; grid-template-rows: 15px 1fr 22px;
+  justify-items: center; align-items: center; gap: 3px; min-width: 0;
+  padding: 5px 2px 0; color: #bdcdcf; font: 12px/1.25 ui-monospace, monospace;
+}
+.chron-tick em { grid-row: 1; color: #a1f1de; font: 11px/1 sans-serif; }
+.chron-period { grid-row: 2; text-align: center; }
+.chron-tick i { grid-row: 3; align-self: end; width: min(54%, 44px); border-radius: 2px 2px 0 0; background: #68898e; }
+.chron button.chron-tick:hover i { background: var(--chron-accent); }
+.chron-node {
+  --anchor: calc(50% / var(--room));
+  grid-row: 1; min-width: 0; margin-block: calc(var(--rail-y) - 5px) 8px;
+  display: flex; flex-direction: column; position: relative;
+  padding: 0; text-align: start; min-height: 44px;
+}
+.chron-branch { display: block; position: relative; padding: 15px 0 5px; }
+.chron-branch .chron-mark { position: absolute; top: 1px; left: var(--anchor); margin-left: -4px; }
+.chron-branch:has(+ .chron-branch)::before {
+  content: ""; position: absolute; left: 3px; right: calc(100% - var(--anchor));
+  top: 5px; height: 100%; border-inline-start: 1px solid #526c70; border-top: 1px solid #526c70; pointer-events: none;
+}
+.chron-branch + .chron-branch::after {
+  content: ""; position: absolute; left: 3px; right: calc(100% - var(--anchor) + 6px);
+  top: 5px; border-top: 1px solid #526c70; pointer-events: none;
+}
+.chron-branch small {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  min-width: calc(100% / var(--room)); width: fit-content; max-width: 100%; padding-inline: 8px;
+  overflow: hidden; overflow-wrap: anywhere; text-align: center;
+  font-family: inherit; font-size: 12px; line-height: 1.45; color: #d7e3e2;
+}
+.chron-node:hover small, .chron-node[aria-expanded="true"] small { color: #a0f6e1; }
+.chron-node[aria-expanded="true"] { background: #83e8d314; border-radius: 6px; }
+.chron-more { align-self: flex-start; position: relative; left: var(--anchor); transform: translateX(-50%); margin: 1px 0 2px; padding: 2px 5px; border-radius: 4px; background: #22393c; color: #b6dbd6; font: 11px/1.3 ui-monospace, monospace; }
+.chron-none { grid-column: 1/-1; text-align: center; padding: 30px 8px 14px; }
+.chron-detail { padding: 12px clamp(12px,2vw,32px); background: #172a2e; border-block: 1px solid #416163; }
+.chron-detail header { flex-wrap: wrap; color: var(--chron-accent); font-size: 14px; }
+.chron-detail header button, .chron-file { padding: 8px; font-size: 12px; }
+.chron-event > :first-child {
+  width: 100%; display: grid; grid-template-columns: max-content 10px minmax(0,1fr) auto;
+  align-items: baseline; gap: 10px; padding: 9px 0; text-align: left; color: #e0ebeb;
+}
+.chron-event time, .chron-event small { font-size: 12px; color: var(--chron-muted); }
+.chron-event strong { font-size: 14px; overflow-wrap: anywhere; }
+.chron-event small { display: block; overflow-wrap: anywhere; margin-top: 3px; }
+.chron-file { display: inline-block; max-width: 100%; overflow-wrap: anywhere; white-space: normal; text-align: start; }
+.chron-event button:hover, .chron .chron-file { color: var(--chron-accent); }
+.chron-history { margin:16px 0; }
+.chron-history > summary { padding:10px 0; cursor:pointer; }
+
+.chron-row:not(.chron-axis) .chron-label strong { border-inline-start: 2px solid var(--lane-color); padding-inline-start: 8px; }
+@container (max-width: 620px) {
+  .chron-head { padding: 14px 12px 8px; flex-wrap: wrap; }
+  .chron-head time { font-size: 11px; }
+  .chron-toolbar { gap: 5px; padding: 3px 12px 12px; }
+  .chron-legend { gap: 10px; font-size: 11px; }
+  .chron-switch button, .chron-nav button { min-height: 40px; padding: 0 9px; }
+  .chron-row { grid-template-columns: minmax(0,1fr); }
+  .chron-axis > .chron-label { display: none; }
+  .chron-row:not(.chron-axis) > .chron-label {
+    display: flex; flex-flow: row wrap; align-items: baseline; justify-content: start;
+    padding: 8px 12px 4px; gap: 2px 10px;
+  }
+  .chron-label strong { font-size: 13px; }
+  .chron-label small { font-size: 11px; max-width: 100%; }
+  .chron .chron-tick { font-size: 11px; }
+  .chron-branch small { font-size: 11px; padding-inline: 5px; }
+  .chron-event > :first-child { gap: 6px; }
+}
+@media(min-width:720px){
+  .app-frame.is-list-view:not(.is-my-work) .workspace:not(.is-project-depth) { grid-template-rows:auto minmax(0,1fr); }
 }

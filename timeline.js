@@ -136,9 +136,16 @@ const workTimeline = (() => {
     if (state.mode === "week") {start = state.anchor - (new Date(state.anchor*dayMs).getUTCDay()+6)%7; end = start+6;}
     else if (end-start < 6) { start -= Math.floor((6-(end-start))/2); end=start+6; }
     const span = end-start+1;
-    const maxColumns = window.innerWidth < 720 ? 4 : 14;
+    const surface = scope === "all" ? listView : projectRoomContent;
+    const width = surface.clientWidth || window.innerWidth;
+    const plotWidth = width < 660 ? width - 42 : width * .8 - 48;
+    const maxColumns = Math.max(3, Math.min(14, Math.floor(plotWidth / 94)));
     const step = state.mode === "week" ? 1 : Math.ceil(span / maxColumns);
     const count = Math.ceil(span/step);
+    // A bin number is meaningful only on the same scale and for the same lane.
+    const layout = [start, step, ...rows.map(row => row.task?.id || row.project.id + row.name)].join("|");
+    if (layout !== state.layout) state.selected = null;
+    state.layout = layout;
     const groupIndex = ev => Math.floor((ev.day-start)/step);
     const bins = Array.from({length:count},()=>[]);
     for (const ev of events) if (ev.day>=start && ev.day<=end) bins[groupIndex(ev)].push(ev);
@@ -152,7 +159,7 @@ const workTimeline = (() => {
     const axis = bins.map((b,i)=>{
       const from = start+i*step, to = Math.min(end, from+step-1);
       const text = to === from ? short(from) : short(from) + "–" + (iso(from).slice(0,7) === iso(to).slice(0,7) ? iso(to).slice(-2) : short(to));
-      const inner = (i===todayCol ? '<em>'+(step===1 ? '今天' : '含今天')+'</em>' : '')+'<span>'+text+'</span><i style="height:'+Math.round(2+18*b.length/peak)+'px"></i>';
+      const inner = (i===todayCol ? '<em>'+(step===1 ? '今天' : '含今天')+'</em>' : '')+'<span class="chron-period">'+text.replace('–','<wbr>–')+'</span><i style="height:'+Math.round(2+18*b.length/peak)+'px"></i>';
       return b.length ? '<button type="button" class="chron-tick" data-chron-bin="'+i+'" aria-label="'+dateLabel(i)+'，'+b.length+' 項">'+inner+'</button>' : '<span class="chron-tick">'+inner+'</span>';
     }).join("");
     const selection = state.selected;
@@ -188,27 +195,26 @@ const workTimeline = (() => {
       const positions=[...groups.keys()].sort((a,b)=>a-b);
       const first=positions[0],last=positions.at(-1);
       const zone=last>first ? Math.max(0, Math.min(100, (todayCol-first)/(last-first)*100)) : 0;
-      const line=positions.length>1 ? '<i class="chron-line" style="--past:'+zone+'%;left:'+((first+.14)/count*100)+'%;width:'+((last-first)/count*100)+'%"></i>' : '';
-      let tracks=1;
+      const line=positions.length>1 ? '<i class="chron-line" style="--past:'+zone+'%;left:'+((first+.5)/count*100)+'%;width:'+((last-first)/count*100)+'%"></i>' : '';
       const marks=positions.map((i,nextIndex)=>{
         const entries=groups.get(i).sort((a,b)=>a.day-b.day);
         const visible=entries.slice(0,3);
         const room=Math.min(3,(positions[nextIndex+1] ?? count)-i);
-        tracks=Math.max(tracks,visible.length);
-        const branches=visible.map((ev,n)=>{
-          const caption=ev.kind==="current" && ev.task ? ev.task.title : ev.title;
-          const extra=n===visible.length-1 && entries.length>visible.length ? '<b>+'+(entries.length-visible.length)+'</b>' : '';
-          return `<span class="chron-branch"><i class="chron-mark ${ev.kind}"></i><small>${e(caption)}</small>${extra}</span>`;
+        const branches = visible.map(ev => {
+          const caption = ev.kind === "current" && ev.task ? ev.task.title : ev.title;
+          return `<span class="chron-branch"><i class="chron-mark ${ev.kind}"></i><small>${e(caption)}</small></span>`;
         }).join("");
-        const name=dateLabel(i)+' · '+row.name+' · '+entries.map(ev=>ev.title).join("、");
-        const selected=selection?.i===i && selection.row===index;
-        return `<button type="button" class="chron-node" style="--col:${i};--room:${room}" data-chron-bin="${i}" data-chron-row="${index}" aria-label="${e(name)}" aria-expanded="${selected}">${branches}</button>`;
+        const overflow = entries.length - visible.length;
+        const more = overflow ? `<span class="chron-more">+${overflow} 項</span>` : "";
+        const name = dateLabel(i) + " · " + row.name + " · " + entries.map(ev => ev.title).join("、");
+        const selected = selection?.i === i && selection.row === index;
+        return `<button type="button" class="chron-node" style="grid-column:${i+1} / span ${room};--room:${room}" data-chron-bin="${i}" data-chron-row="${index}" aria-label="${e(name)}" aria-expanded="${selected}">${branches}${more}</button>`;
       }).join("");
       const text='<strong>'+e(row.name)+'</strong>'+(row.sub ? '<small>'+e(row.sub)+'</small>' : '');
       const route=scope==="all" ? 'data-open-project="'+e(row.project.id)+'"' : row.task ? 'data-delivery-action="open" data-work="'+e(row.task.id)+'" data-project="'+e(row.project.id)+'"' : "";
       const color=/^#[0-9a-f]{6}$/i.test(row.project.color) ? row.project.color : "#83e8d3";
       const label=route ? '<button type="button" class="chron-label" '+route+'>'+text+'</button>' : '<div class="chron-label">'+text+'</div>';
-      return '<div class="chron-row" style="--tracks:'+tracks+';--lane-color:'+color+'">'+label+plot(line+marks+(!marks ? '<small class="chron-none">'+(row.events.length ? '本週無事件' : '尚無日期')+'</small>' : ''))+'</div>'+(selection?.row===index ? details(groups.get(selection.i)||[],selection.i,index) : "");
+      return '<div class="chron-row" style="--lane-color:'+color+'">'+label+plot(line+marks+(!marks ? '<small class="chron-none">'+(row.events.length ? '本週無事件' : '尚無日期')+'</small>' : ''))+'</div>'+(selection?.row===index ? details(groups.get(selection.i)||[],selection.i,index) : "");
     }).join("");
     const allDetails=selection?.row===-1 ? details(bins[selection.i]||[],selection.i,-1) : "";
     return '<header class="chron-head"><div><h3>'+title+'</h3><time>'+iso(start).replaceAll("-",".")+' — '+iso(end).replaceAll("-",".")+'</time></div>'+modes+'</header><div class="chron-toolbar"><div class="chron-legend">'+legend+'</div>'+(state.mode==="week" ? '<div class="chron-nav">'+btn("prev","‹","上一週")+btn("now","本週")+btn("next","›","下一週")+'</div>' : '')+'</div><div class="chron-grid" style="--cols:'+count+'"><div class="chron-row chron-axis"><div class="chron-label"><small>日期分布</small></div>'+plot(axis)+'</div>'+allDetails+lines+'</div>';
