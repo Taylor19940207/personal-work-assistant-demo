@@ -120,9 +120,9 @@
     if (projectRoomContent.querySelector(".d-work-detail") && workspaceData[uiState.projectId]?.tasks.some(task => task.id === recordId)) {
       projectRoomContent.scrollTop = 0;
       projectRoom.scrollTop = 0;
-      const title = projectRoomContent.querySelector(".d-work-heading h2");
+      const title = projectRoomHeader.querySelector("h1");
       title?.setAttribute("tabindex", "-1"); title?.focus({ preventScroll: true });
-      if (innerWidth < 720) window.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0, behavior:"instant" });
       return;
     }
     return oldFocusRecord(recordId);
@@ -315,6 +315,7 @@
 
   function breadcrumb(data, task) {
     const parent = data.tasks.find(item => item.id === task.parentId);
+    if (history.state?.fromWork?.timelineOrigin) return "";
     const up = history.state?.fromWork?.listOrigin ? action("← 回清單項目","work-up",task.id) : parent ? action("← " + e(parent.title), "work-up", task.id) : action("← 案件工作", "work-up", task.id);
     return `<nav class="d-breadcrumb" aria-label="工作層級">${up}</nav>`;
   }
@@ -360,20 +361,25 @@
   renderProjectRoom = function() {
     const data = workspaceData[uiState.projectId];
     if (!data) return;
+    const openTimeline = projectRoomContent.querySelector(".d-timeline-fold[open]")?.dataset.work;
     normalize(data); oldRoom();
     const selected = uiState.projectTab === "board" && data.tasks.find(task => task.id === uiState.focusRecordId);
     projectRoom.classList.toggle("reading-work",Boolean(selected));
     if (selected) {
-      const heading = projectRoomHeader.querySelector("h1");
-      heading.innerHTML = `<button type="button" class="d-case-link" data-project-tab="overview" aria-label="回案件總覽：${e(getProject(uiState.projectId).name)}">${e(getProject(uiState.projectId).name)} <small>案件總覽 ↗</small></button>`;
+      const copy = projectRoomHeader.querySelector(".project-heading-copy");
+      copy.innerHTML = `<button type="button" class="d-case-link" data-project-tab="overview" aria-label="回案件總覽：${e(getProject(uiState.projectId).name)}">${e(getProject(uiState.projectId).name)} <small>案件總覽 ↗</small></button><h1 tabindex="-1">${e(selected.title)}</h1>`;
+      projectRoomHeader.querySelector(".project-heading-status")?.remove();
+      const fold = projectRoomContent.querySelector(".d-timeline-fold");
+      if (fold && openTimeline === selected.id) fold.open = true;
     }
     const back = projectRoomHeader.querySelector(".project-back");
     if (selected && back) {
       delete back.dataset.action;
       back.dataset.deliveryAction = "work-up";
       back.dataset.work = selected.id;
-      back.title = history.state?.fromWork?.listOrigin ? "回清單項目" : "返回上一層";
+      back.title = history.state?.fromWork?.timelineOrigin ? "回時間軸" : history.state?.fromWork?.listOrigin ? "回清單項目" : "返回上一層";
       back.setAttribute("aria-label", back.title);
+      if (history.state?.fromWork?.timelineOrigin) { back.textContent = "← 回時間軸"; back.classList.add("d-timeline-back"); }
     }
     const project = getProject(uiState.projectId);
     const summaryLine = projectRoomHeader.querySelector(".project-heading-copy > p:last-child");
@@ -391,6 +397,11 @@
         const button = detail.querySelector(`[data-delivery-action="${name}"]`);
         if (button) {button.textContent = label; actions.append(button);}
       };
+      const emptyProgress = detail.querySelector("[data-progress-empty]");
+      if (emptyProgress) {
+        detail.querySelector(".d-work-heading .d-actions").prepend(emptyProgress.querySelector("button"));
+        emptyProgress.remove();
+      }
       moveAction("edit","編輯工作");
       if (!children(data,selected.id).length) moveAction("create","拆成子工作");
       for (const section of detail.querySelectorAll("[data-unused-tools]")) {
@@ -408,17 +419,19 @@
     const files = data.files.filter(file => file.workIds.includes(task.id) || file.linkedType === "task" && file.linkedId === task.id);
     const issues = data.issues.filter(issue => issue.taskId === task.id);
     const assignee = assignmentOf(task)?.person || task.owner;
-    const facts = [assignee, normalizeDateValue(task.due) && "期限 "+task.due].filter(Boolean).map(e).join(" · ");
+    const items = task.requests.filter(request => request.items?.length);
+    const total = items.reduce((sum, request) => sum + request.items.length, 0);
+    const ready = items.reduce((sum, request) => sum + lists.stats(data, request), 0);
+    const timeline = workTimeline.render([project], project.id, task);
+    const facts = [total && `清單已備妥 ${ready} / ${total} 項`, assignee, normalizeDateValue(task.due) && "期限 "+task.due].filter(Boolean).map(e).join(" · ");
     const pendingReview = task.reviewRounds.findLast(round => round.state === "waiting");
     return `<article class="project-surface d-work-detail" data-record-target="${e(task.id)}">
       ${breadcrumb(data, task)}
-      <header class="d-work-heading"><div><h2>${e(task.title)}</h2>${facts ? `<p>${facts}</p>` : ""}</div><div class="d-actions">${task.status === "done" ? "" : action(assignmentOf(task) ? "調整指派" : "指派", "assign", task.id)}${action("編輯工作", "edit", task.id)}<label class="d-state-control">工作狀態<select data-task-move="${e(task.id)}">${boardColumns.map(column => `<option value="${column.id}" ${task.status === column.id ? "selected" : ""}>${column.label}</option>`).join("")}</select></label></div></header>
+      <header class="d-work-heading"><div>${facts ? `<p>${facts}</p>` : ""}${signals(data, task)}</div><div class="d-actions">${task.status === "done" ? "" : action(assignmentOf(task) ? "調整指派" : "指派", "assign", task.id)}${action("編輯工作", "edit", task.id)}<label class="d-state-control">工作狀態<select data-task-move="${e(task.id)}">${boardColumns.map(column => `<option value="${column.id}" ${task.status === column.id ? "selected" : ""}>${column.label}</option>`).join("")}</select></label></div></header>
       ${data.tasks.some(work=>work.requests.some(req=>req.items?.some(item=>item.sourceId===task.id))) ? action("交回工作結果","list-output",task.id) : ""}
-      ${signals(data, task)}${dependencyRows(data, task)}
-
-      ${workTimeline.render([project], project.id, task)}
+      ${dependencyRows(data, task)}
       <div class="d-detail-grid"><div class="d-detail-main">
-        <section class="d-section"><div class="d-section-title"><h3>${task.status === "done" ? "完成結果" : "工作進度"}</h3>${action("更新現況", "progress", task.id)}</div>${task.detail || task.status === "done" ? `<p class="d-current">${e(workCurrent(task))}</p>` : ""}${task.criteria ? `<p class="d-help">完成標準：${e(task.criteria)}</p>` : ""}${task.status === "done" && task.detail ? `<details><summary>完成前最後現況</summary><p>${e(task.detail)}</p></details>` : ""}</section>
+        <section class="d-section" ${!task.detail && !task.criteria && task.status !== "done" ? "data-progress-empty" : ""}><div class="d-section-title"><h3>${task.status === "done" ? "完成結果" : "工作進度"}</h3>${action("更新現況", "progress", task.id)}</div>${task.detail || task.status === "done" ? `<p class="d-current">${e(workCurrent(task))}</p>` : ""}${task.criteria ? `<p class="d-help">完成標準：${e(task.criteria)}</p>` : ""}${task.status === "done" && task.detail ? `<details><summary>完成前最後現況</summary><p>${e(task.detail)}</p></details>` : ""}</section>
         ${task.status === "review" && !reviewable(assignmentOf(task) || {}) ? `<section class="d-section d-review-panel"><h3>整項成果待確認</h3><p>${pendingReview ? `${e(pendingReview.person)} · ${e(pendingReview.request)}<br>預計回覆 ${dateLabel(pendingReview.expectedDate)}` : "舊版待確認工作，尚無完整確認紀錄。"}</p><div class="d-actions">${action("需修改，回到進行中", "return", task.id)}${action("確認成果已完成", "complete", task.id)}</div></section>` : ""}
         <section class="d-section"><div class="d-section-title"><h3>待辦與分工</h3><div class="d-actions">${action("＋ 待辦", "step", task.id)}${action("拆成子工作", "create", task.id)}</div></div>
           ${task.checklist.map(item => `<div class="d-step"><label><input type="checkbox" data-delivery-check="${e(item.id)}" data-work="${e(task.id)}" ${item.done ? "checked" : ""}><span>${e(item.title)}</span></label>${action("移除", "remove-step", task.id, `data-item="${e(item.id)}"`)}</div>`).join("")}
@@ -426,6 +439,7 @@
         </section>
         <section class="d-section" ${task.requests.length ? "" : "data-unused-tools"}><div class="d-section-title"><div><h3>清單與往來</h3></div><div class="d-actions">${action("＋ 清單", "list-new", task.id)}${action("記一筆資料往來", "request", task.id)}</div></div>${task.requests.map(request => requestCard(task, request, data)).join("") || `<p class="d-help">例如：會計師需要修訂後的財務資料，預計週五回覆。</p>`}</section>
         <section class="d-section" ${task.milestones.length ? "" : "data-unused-tools"}><div class="d-section-title"><div><h3>關鍵日期</h3><p>提交、預約與交付時間分開追蹤，保留預計、約定及實際日期。</p></div>${action("加重要日期", "milestone", task.id)}</div>${task.milestones.map(milestone => `<div class="d-milestone"><div><strong>${e(milestone.title)}</strong><p>預計 ${dateLabel(milestone.plannedDate)} · 約定 ${dateLabel(milestone.committedDate)}<br>實際 ${milestone.actualDate ? dateLabel(milestone.actualDate) : "尚未發生"}</p>${milestone.note ? `<p>${e(milestone.note)}</p>` : ""}</div>${action("更新", "milestone", task.id, `data-item="${e(milestone.id)}"`)}</div>`).join("") || `<p class="d-help">例如：老師向主管機關提交申請的日期。</p>`}</section>
+        ${timeline ? `<details class="d-timeline-fold" data-work="${e(task.id)}"><summary>工作時間軸</summary>${timeline}</details>` : ""}
         <details class="d-work-history"><summary>工作紀錄 · ${task.history.length}</summary><div class="d-section-title">${action("新增紀錄", "note", task.id)}</div>${task.history.length ? task.history.map(item => `<div class="d-history"><time>${e((item.documentEventId ? item.date : item.at || item.date).slice(0, 10))}</time><div><strong>${e(item.title)}</strong><p>${e(item.detail)}</p></div></div>`).join("") : `<p class="d-help">新的變更會記在這裡；舊紀錄仍保留在專案的完整紀錄中。</p>`}
         ${task.reviewRounds.length ? `<details><summary>整項成果確認紀錄 · ${task.reviewRounds.length} 輪</summary>${task.reviewRounds.map(round => `<p>${e(round.person)} · ${dateLabel(round.sentAt?.slice(0, 10))}<br>${e(round.request)}<br>${e(round.reply || "尚無回覆")} · ${e(requestNames[round.state] || "舊版紀錄")}</p>`).join("")}</details>` : ""}</details>
       </div><aside class="d-side">
@@ -1029,9 +1043,10 @@
       nextControl?.focus({ preventScroll: true });
       return;
     }
-    if (name === "open") return openWork(projectId, id);
+    if (name === "open") return openProjectRoom(projectId, "board", true, id, null, workTimeline.origin(button));
     if (name === "open-request" || name === "open-milestone") {
-      openWork(projectId, id);
+      if (uiState.projectId !== projectId || uiState.focusRecordId !== id || uiState.projectTab !== "board")
+        openProjectRoom(projectId, "board", true, id, null, workTimeline.origin(button));
       const selector = name === "open-request" ? `[data-request-id="${CSS.escape(itemId)}"]` : `[data-delivery-action="milestone"][data-item="${CSS.escape(itemId)}"]`;
       // Run after the ordinary room-entry focus, which otherwise resets this jump to the top.
       requestAnimationFrame(() => {
@@ -1078,7 +1093,7 @@
     if (name === "work-up" && task) {
       const parent = data.tasks.find(work => work.id === task.parentId);
       const from = history.state?.fromWork;
-      if (from && (from.listOrigin || (parent ? from.work === parent.id : !from.work))) return history.back();
+      if (from && (from.timelineOrigin || from.listOrigin || (parent ? from.work === parent.id : !from.work))) return history.back();
       if (parent) openWork(projectId, parent.id);
       else setProjectTab("overview");
       requestAnimationFrame(() => {
@@ -1131,7 +1146,7 @@
     if (name === "step") return form("新增待辦", e(task.title), field("要做什麼", "title", "", "text", true) + field("預計處理日（選填）", "due", "", "date"), "新增待辦", values => {
       const title = requiredValue(values, "title", "請填寫步驟"); task.checklist.push({ id: uid("step"), title, due: textValue(values,"due"), done: false }); record(data, task, "新增待辦", title);
     });
-    if (name === "milestone") {
+    if (name === "milestone" || name === "timeline-edit-date") {
       const milestone = task.milestones.find(item => item.id === itemId);
       return form(milestone ? "更新關鍵日期" : "新增關鍵日期", "預計是規劃；約定是已和對方確認的時間；實際只記錄已發生的事。",
         field("事件名稱", "title", milestone?.title, "text", true) + field("預計日期", "plannedDate", milestone?.plannedDate, "date") + field("已約定日期", "committedDate", milestone?.committedDate, "date") + field("實際發生日期", "actualDate", milestone?.actualDate, "date") + field("說明／日期變更原因", "note", milestone?.note, "textarea"), "儲存日期", values => {
@@ -1202,7 +1217,12 @@
     if (legacyNode) { const found = getNode(legacyNode); if (found) return openWork(found.project.id, found.node.linkedTaskId); }
     const result = oldRoute();
     const position = history.state?.returnScroll;
-    if (position && routeProject) requestAnimationFrame(() => {
+    if (position?.timelineOrigin) requestAnimationFrame(() => {
+      workTimeline.restore(position.timelineOrigin, position.child);
+      if (routeProject) projectRoomContent.scrollTop = position.room;
+      window.scrollTo({top:position.page, behavior:"instant"});
+    });
+    else if (position && routeProject) requestAnimationFrame(() => {
       if (uiState.projectId !== routeProject) return;
       const origin = position.listOrigin;
       const row = origin

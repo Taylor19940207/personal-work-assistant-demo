@@ -38,9 +38,9 @@
       delete back.dataset.action;
       back.dataset.deliveryAction = "work-up";
       back.dataset.work = current.id;
-      back.textContent = history.state?.fromWork?.listOrigin ? "← 回清單" : "← 上一層";
+      back.textContent = history.state?.fromWork?.timelineOrigin ? "← 回時間軸" : history.state?.fromWork?.listOrigin ? "← 回清單" : "← 上一層";
       const parent = workspaceData[uiState.projectId].tasks.find(task => task.id === current.parentId);
-      back.setAttribute("aria-label", history.state?.fromWork?.listOrigin ? "回清單項目" : parent ? "返回「" + parent.title + "」" : "返回案件工作");
+      back.setAttribute("aria-label", history.state?.fromWork?.timelineOrigin ? "回時間軸" : history.state?.fromWork?.listOrigin ? "回清單項目" : parent ? "返回「" + parent.title + "」" : "返回案件工作");
     } else {
       delete back.dataset.deliveryAction; delete back.dataset.work; back.removeAttribute("aria-label");
       back.dataset.action = "leave-project"; back.textContent = "← 全局";
@@ -79,7 +79,7 @@
   function compactRoom() {
     if (!compact.matches || uiState.surface !== 'project') return;
     const header = projectRoomHeader, copy = header.querySelector('.project-heading-copy');
-    if (!copy || header.querySelector('.m-project-info')) return;
+    if (projectRoom.classList.contains("reading-work") || !copy || header.querySelector('.m-project-info')) return;
     const details = document.createElement('details'); details.className = 'm-project-info';
     details.innerHTML = '<summary>案件資訊⌄</summary><div class="m-project-facts"></div>';
     const facts = details.querySelector('div');

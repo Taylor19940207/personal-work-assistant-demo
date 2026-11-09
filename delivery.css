@@ -235,3 +235,19 @@
   .reading-work .d-other-tools {order:1;}
   .reading-work .d-work-history {order:2;}
 }
+
+.reading-work .project-room-header { grid-template-columns: minmax(0,1fr); }
+.reading-work .d-case-link { color: var(--paper-2); font-size: 13px; margin-bottom: 4px; }
+.reading-work .d-work-heading { align-items: center; }
+.d-work-heading .d-signals { margin-top: 4px; }
+.d-work-detail .d-timeline-fold { grid-column: 1/-1; border-top: 1px solid var(--line); }
+.d-timeline-fold > summary { min-height:44px; color: var(--paper); }
+.d-timeline-fold .chron { margin: 0; }
+.d-work-detail .chron-event { margin-top: 0; }
+
+.project-back.d-timeline-back { width: auto; padding-inline: 12px; font-size: 13px; }
+.reading-work .d-work-heading p { color: var(--paper); font-size: 15px; }
+
+@media (max-width:719px), (pointer:coarse) and (max-width:1100px) {
+  .reading-work .project-heading-copy h1 { font-size: 22px; margin-bottom: 6px; }
+}

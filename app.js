@@ -1561,7 +1561,7 @@ function createNextTaskFromRecord(data, { title, sourceIssueId = "", sourceDecis
   return task;
 }
 
-function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRecordId = "", listOrigin = null) {
+function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRecordId = "", listOrigin = null, timelineOrigin = null) {
   const project = getProject(projectId);
   if (!project) return;
   const isAlreadyProjectDepth = uiState.surface === "project";
@@ -1571,9 +1571,9 @@ function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRec
     targetWork.parentId === uiState.focusRecordId && uiState.projectTab === "board" ||
     !uiState.focusRecordId && ["overview", "board"].includes(uiState.projectTab)
   );
-  const previous = { tab: uiState.projectTab, work: uiState.focusRecordId || "", listOrigin };
-  if (drilling) {
-    history.replaceState({ ...history.state, returnScroll: { page: scrollY, room: projectRoomContent.scrollTop, child: focusRecordId, listOrigin } }, "");
+  const previous = { tab: uiState.projectTab, work: uiState.focusRecordId || "", listOrigin, timelineOrigin };
+  if (drilling || timelineOrigin) {
+    history.replaceState({ ...history.state, returnScroll: { page: scrollY, room: projectRoomContent.scrollTop, child: focusRecordId, listOrigin, timelineOrigin } }, "");
   }
   if (uiState.surface === "portfolio") portfolioScroll = { page: window.scrollY, list: listView.scrollTop };
   const allowedTabs = new Set(["overview", "board", "records", "files", "activity"]);
@@ -1599,7 +1599,7 @@ function openProjectRoom(projectId, tab = "overview", pushRoute = true, focusRec
   if (pushRoute) {
     const oldDepth = history.state?.projectDepth ?? (history.state?.returnToPortfolio ? 1 : 0);
     const state = { surface: "project", projectId, returnToPortfolio: !isAlreadyProjectDepth || Boolean(history.state?.returnToPortfolio),
-      projectDepth: isAlreadyProjectDepth ? oldDepth + (drilling ? 1 : 0) : 1, fromWork: drilling ? previous : null };
+      projectDepth: isAlreadyProjectDepth ? oldDepth + (drilling ? 1 : 0) : 1, fromWork: drilling || timelineOrigin ? previous : null };
 
     const route = `#project=${projectId}&tab=${tab}${recordRoute}`;
     if (isAlreadyProjectDepth && !drilling) history.replaceState(state, "", route);

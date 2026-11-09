@@ -44,8 +44,10 @@ const workTimeline = (() => {
       }
       for (const m of task.milestones) {
         const target = {route:"open-milestone", item:m.id};
-        if (m.actualDate) put(m.actualDate, "actual", m.title, m.note, target);
-        else put(m.committedDate || m.plannedDate, "plan", m.title, m.committedDate ? "已約定" : "預計", target);
+        const dates = [m.plannedDate && "預計 " + m.plannedDate, m.committedDate && "約定 " + m.committedDate];
+        const note = [...dates, m.note].filter(Boolean).join(" · ");
+        if (m.actualDate) put(m.actualDate, "actual", m.title, note, target);
+        else put(m.committedDate || m.plannedDate, "plan", m.title, note, target);
       }
       for (const r of task.requests) {
         const target = {route:"open-request", item:r.id};
@@ -57,7 +59,7 @@ const workTimeline = (() => {
         for (const [i, round] of (r.rounds || []).entries()) {
           const who = [round.person || r.person, "第 " + (i+1) + " 輪"].filter(Boolean).join(" · ");
           const received = r.direction === "inbound";
-          put(round.sentDate, "actual", (received ? "已提出 · " : "已送出 · ") + r.title, who, {...target, refs:received ? [] : round.artifacts});
+          put(round.sentDate, "actual", (received ? "已提出 · " : "已送出 · ") + r.title, [who,round.note].filter(Boolean).join(" · "), {...target, refs:received ? [] : round.artifacts});
           put(round.receivedDate, "actual", "已收到 · " + r.title, who, {...target, refs:round.artifacts});
           const reply = {revise:"退回修改", accepted:"已確認", cancelled:"已結束"}[round.state];
           if (reply) put(round.replyDate || round.repliedAt, round.state === "revise" ? "issue" : "actual", reply + " · " + r.title, [who,round.reply].filter(Boolean).join(" · "), {...target, refs:round.artifacts});
@@ -79,7 +81,7 @@ const workTimeline = (() => {
     }
     for (const issue of data.issues) {
       const task = data.tasks.find(t => t.id === issue.taskId);
-      if (!focus || focus.id === task?.id) add(task, issue.date, "issue", issue.title, "記錄問題", {issue:issue.id});
+      if (!focus || focus.id === task?.id) add(task, issue.date, "issue", issue.title, issue.detail, {issue:issue.id});
     }
     for (const decision of data.decisions) {
       const issue = data.issues.find(row => row.id === decision.issueId);
@@ -167,10 +169,18 @@ const workTimeline = (() => {
       if (!selection || selection.i!==i || selection.row!==row || !events.length) return "";
       const items=[...events].sort((a,b)=>a.day-b.day);
       const weekLink=step>1 ? `<button type="button" data-chron-week="${items[0].day}">查看 ${short(items[0].day)} 該週</button>` : "";
-      return '<div class="chron-detail"><header><strong>'+dateLabel(i)+' · '+items.length+' 項</strong><span>'+weekLink+'<button type="button" data-chron-close aria-label="收起事件">收起 ×</button></span></header>'+items.map(ev=>{
+      const heading = items.length === 1 ? iso(items[0].day) : dateLabel(i) + " · " + items.length + " 項";
+      return `<div class="chron-detail"><header><strong>${heading}</strong><span>${weekLink}<button type="button" data-chron-close aria-label="收起事件">收起 ×</button></span></header>`+items.map(ev=>{
         const work = ev.task;
-        const route = ev.record ? 'data-open-project-tab="'+ev.tab+'" data-project-id="'+e(ev.project.id)+'" data-record-id="'+e(ev.record)+'"' : ev.issue ? 'data-open-project-tab="records" data-project-id="'+e(ev.project.id)+'" data-record-id="'+e(ev.issue)+'"' : work ? 'data-delivery-action="'+(ev.route || "open")+'" data-project="'+e(ev.project.id)+'" data-work="'+e(work.id)+'" data-item="'+e(ev.item || "")+'"' : 'data-open-project="'+e(ev.project.id)+'"';
-        const context=[scope==="all" && ev.project.name,work?.title,ev.note].filter(Boolean).join(" · ");
+        const context = [scope === "all" && ev.project.name, !focus && work?.title].filter(Boolean).join(" · ");
+        const eventKey = e(JSON.stringify([ev.project.id, work?.id, ev.day, ev.kind, ev.item, ev.issue, ev.record, ev.title]));
+        const attrs = `data-project="${e(ev.project.id)}" data-work="${e(work?.id || "")}"`;
+        const controls = [];
+        if (work && !focus) controls.push(`<button type="button" data-delivery-action="open" ${attrs}>開啟「${e(work.title)}」工作</button>`);
+        if (!work && scope === "all") controls.push(`<button type="button" data-open-project="${e(ev.project.id)}">開啟「${e(ev.project.name)}」案件</button>`);
+        if (ev.route === "open-milestone") controls.push(`<button type="button" data-delivery-action="timeline-edit-date" ${attrs} data-item="${e(ev.item)}">編輯日期</button>`);
+        if (ev.route === "open-request") controls.push(`<button type="button" data-delivery-action="open-request" ${attrs} data-item="${e(ev.item)}">查看這筆往來</button>`);
+        if (ev.record || ev.issue) controls.push(`<button type="button" data-open-project-tab="${ev.tab || "records"}" data-project-id="${e(ev.project.id)}" data-record-id="${e(ev.record || ev.issue)}">${ev.issue ? "查看問題" : "查看原始紀錄"}</button>`);
         const links=(ev.refs || []).map(ref=>{
           const docId=ref.documentId || workspaceData[ev.project.id].files.find(f=>f.id===ref.fileId)?.documentId;
           const version=docId && documentModel.find(docId)?.versions.find(v=>v.id===ref.versionId);
@@ -179,9 +189,11 @@ const workTimeline = (() => {
           const url=normalizeExternalUrl(version.url || "");
           return url ? '<a class="chron-file" rel="noopener noreferrer" target="_blank" href="'+e(url)+'">'+e(ref.name || version.name)+' ↗</a>' : "";
         }).join("");
-        const body='<time>'+iso(ev.day)+'</time><i class="chron-mark '+ev.kind+'"></i><span><strong>'+e(ev.title)+'</strong><small>'+e(context)+'</small></span>';
-        const actionable=ev.record || ev.issue || ev.item || (!focus && (work || scope==="all"));
-        return '<div class="chron-event">'+(actionable ? '<button type="button" '+route+'>'+body+'<b>↗</b></button>' : '<div>'+body+'</div>')+links+'</div>';
+        const title = ev.kind === "current" && work ? `${work.title} · ${ev.title}` : ev.title;
+        const label = `<i class="chron-mark ${ev.kind}"></i><strong>${e(title)}</strong>`;
+        const body = `<div class="chron-reading"><small>${e([labels[ev.kind],context].filter(Boolean).join(" · "))}</small>${ev.note ? `<p>${e(ev.note)}</p>` : ""}${links}<div class="chron-actions">${controls.join("")}</div></div>`;
+        if (items.length === 1) return `<article class="chron-event" data-event-key="${eventKey}"><div class="chron-event-title">${label}</div>${body}</article>`;
+        return `<details class="chron-event" data-event-key="${eventKey}"><summary><time>${short(ev.day)}</time>${label}<span aria-hidden="true">⌄</span></summary>${body}</details>`;
       }).join("")+'</div>';
     }
     const lines=rows.map((row,index)=>{
@@ -256,10 +268,30 @@ const workTimeline = (() => {
         const scroller = surface.scrollHeight > surface.clientHeight ? surface : document.scrollingElement;
         if (scroller) scroller.scrollTop += (nextControl.getBoundingClientRect().top - top) / appLayoutScale();
       }
-      if (state.selected) root.querySelector(".chron-detail > header")?.scrollIntoView({block:"nearest", behavior:"instant"});
+      if (state.selected) {
+        const panel = root.querySelector(".chron-detail");
+        const preview = panel?.querySelector("article.chron-event");
+        const available = (meta.scope === "all" ? listView : projectRoomContent).getBoundingClientRect().height;
+        const fits = panel && panel.getBoundingClientRect().height < Math.min(innerHeight,available) / 2;
+        (preview && fits ? panel : panel?.querySelector("header"))?.scrollIntoView({block:"nearest", behavior:"instant"});
+      }
     } else if (d.chronClose !== undefined) {
       nextControl?.scrollIntoView({block:"nearest", behavior:"instant"});
     }
   });
-  return {render};
+  // Keep the exact day and expanded row as a return destination.
+  function origin(button) {
+    const root = button.closest(".chron");
+    if (!root) return null;
+    return {scope:root.dataset.chron, entry:button.closest("[data-event-key]")?.dataset.eventKey ?? null};
+  }
+  function restore(source, workId) {
+    const root = document.querySelector(`[data-chron="${CSS.escape(source.scope)}"]`);
+    if (!root) return;
+    const entry = source.entry == null ? null : root.querySelector(`[data-event-key="${CSS.escape(source.entry)}"]`);
+    if (entry?.matches("details")) entry.open = true;
+    const target = entry?.querySelector('[data-delivery-action="open"]') || root.querySelector(`.chron-label[data-work="${CSS.escape(workId)}"]`) || root.querySelector('[aria-expanded="true"][data-chron-bin]');
+    target?.focus({preventScroll:true});
+  }
+  return {render, origin, restore};
 })();
