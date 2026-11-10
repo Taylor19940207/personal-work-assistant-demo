@@ -138,11 +138,17 @@
     return `<button type="button" class="d-action" data-delivery-action="${name}" data-work="${e(id)}" ${extra}>${label}</button>`;
   }
   function dateLabel(value) { return value && value !== "未排定" ? e(value) : "未排定"; }
-  function workMeta(task) {
+  function workAppointment(data, task) {
+    return task.dateAppointmentId && data.appointments.find(item => item.id === task.dateAppointmentId && item.taskId === task.id && item.status !== "cancelled");
+  }
+  function workAppointmentLabel(item) {
+    return item ? [item.status === "held" ? "已舉行" : "行程", item.date, item.time].filter(Boolean).join(" ") : "";
+  }
+  function workMeta(task, data) {
     const due = normalizeDateValue(task.due);
     const assignment = assignmentOf(task);
     const handoff = normalizeDateValue(assignment?.due);
-    return [workPeople(task), due && "工作期限 " + due, handoff && handoff !== due && "交件日 " + handoff].filter(Boolean).join(" · ");
+    return [workPeople(task), due && "工作期限 " + due, workAppointmentLabel(workAppointment(data, task)), handoff && handoff !== due && "交件日 " + handoff].filter(Boolean).join(" · ");
   }
   function milestoneDates(item) {
     return [item.plannedDate && "預計 " + item.plannedDate, item.committedDate && "已約定 " + item.committedDate,
@@ -161,7 +167,7 @@
     return `<div class="d-tree-item" style="--depth:${Math.min(depth, 8)}">
       <div class="d-tree-row" data-work-row="${e(task.id)}">
         ${kids.length ? action(isOpen ? "−" : "+", "expand", task.id, `aria-label="${isOpen ? "收合" : "展開"} ${e(task.title)}" aria-expanded="${isOpen}"`) : `<span class="d-tree-dot" aria-hidden="true"></span>`}
-        <button class="d-work-link" type="button" data-delivery-action="open" data-project="${e(project.id)}" data-work="${e(task.id)}"><strong>${e(task.title)}</strong><small>${e(workMeta(task))}${kids.length ? `${workMeta(task) ? " · " : ""}${kids.filter(item => item.status === "done").length}/${kids.length} 項子工作已完成` : ""}</small>${signals(data, task)}</button>
+        <button class="d-work-link" type="button" data-delivery-action="open" data-project="${e(project.id)}" data-work="${e(task.id)}"><strong>${e(task.title)}</strong><small>${e(workMeta(task, data))}${kids.length ? `${workMeta(task, data) ? " · " : ""}${kids.filter(item => item.status === "done").length}/${kids.length} 項子工作已完成` : ""}</small>${signals(data, task)}</button>
         ${badge(task)}
       </div>
       ${isOpen ? kids.map(item => workRow(project, item, depth + 1)).join("") : ""}
@@ -277,7 +283,7 @@
       }
       const s = summary(data, task);
       const alert = s.issues.length ? s.issues.length + " 個待解決問題" : s.revise.length ? s.revise.length + " 項待修改或補件" : s.waiting.length ? s.waiting.length + " 項待跟進" : "";
-      const info = [workMeta(task), alert].filter(Boolean).join(" · ");
+      const info = [workMeta(task, data), alert].filter(Boolean).join(" · ");
       nodes.push(`<article data-motion-key="work/${e(task.id)}" class="d-map-node ${task.status === "doing" ? "is-active" : ""}" style="--work-node-width:${width}px;left:${x}px;top:${y}px;--project-color:${project.color}" data-map-project="${e(project.id)}" data-has-issues="${Boolean(s.issues.length)}">
         <button type="button" class="d-map-open" data-delivery-action="open" data-project="${e(project.id)}" data-work="${e(task.id)}">${badge(task)}<strong>${e(task.title)}</strong>${info ? `<small>${e(info)}</small>` : ""}</button>
         ${childCount ? action(`${expanded.has(task.id) ? "−" : "+"} ${childCount}`, "expand", task.id, `aria-expanded="${expanded.has(task.id)}" aria-label="展開或收合 ${e(task.title)} 的子工作"`) : ""}
@@ -445,7 +451,7 @@
       }
     }
     const byTime = (a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time);
-    return `<section class="d-section d-agenda"><div class="d-section-title"><h3>${task ? "工作行程" : "案件行程"}</h3>${action("新增行程", "appointment", task?.id)}</div>
+    return `<section class="d-section d-agenda"><div class="d-section-title"><h3>${task ? "工作行程" : "案件行程"}</h3>${action(task && (normalizeDateValue(task.due) || workAppointment(data, task)) ? "另排行程" : "新增行程", "appointment", task?.id)}</div>
       ${upcoming.sort(byTime).map(row=>row.html).join("")}
       ${past.length ? `<details><summary>已結束的行程 · ${past.length}</summary>${past.sort((a,b)=>byTime(b,a)).map(row=>row.html).join("")}</details>` : ""}</section>`;
   }
@@ -480,7 +486,7 @@
   }
   function taskCard(task, data) {
     const kids = children(data, task.id);
-    return `<article class="task-card d-board-card" draggable="true" data-task-id="${e(task.id)}" data-record-target="${e(task.id)}"><button class="d-work-link" type="button" data-delivery-action="open" data-work="${e(task.id)}"><h3>${e(task.title)}</h3><p>${e(workCurrent(task))}</p></button>${signals(data, task)}<small>${e(workMeta(task))}</small>${kids.length ? `<p>${kids.filter(item => item.status === "done").length}/${kids.length} 項子工作已完成</p>` : ""}<div class="d-card-footer"><select aria-label="${e(task.title)}的狀態" data-task-move="${e(task.id)}">${boardColumns.map(column => `<option value="${column.id}" ${column.id === task.status ? "selected" : ""}>${column.label}</option>`).join("")}</select></div></article>`;
+    return `<article class="task-card d-board-card" draggable="true" data-task-id="${e(task.id)}" data-record-target="${e(task.id)}"><button class="d-work-link" type="button" data-delivery-action="open" data-work="${e(task.id)}"><h3>${e(task.title)}</h3><p>${e(workCurrent(task))}</p></button>${signals(data, task)}<small>${e(workMeta(task, data))}</small>${kids.length ? `<p>${kids.filter(item => item.status === "done").length}/${kids.length} 項子工作已完成</p>` : ""}<div class="d-card-footer"><select aria-label="${e(task.title)}的狀態" data-task-move="${e(task.id)}">${boardColumns.map(column => `<option value="${column.id}" ${column.id === task.status ? "selected" : ""}>${column.label}</option>`).join("")}</select></div></article>`;
   }
   renderTaskCard = taskCard;
   renderProjectBoard = function(project, data) {
@@ -568,11 +574,12 @@
     const total = items.reduce((sum, request) => sum + request.items.length, 0);
     const ready = items.reduce((sum, request) => sum + lists.stats(data, request), 0);
     const timeline = workTimeline.render([project], project.id, task);
-    const facts = [total && `清單已備妥 ${ready} / ${total} 項`, people, normalizeDateValue(task.due) && "期限 "+task.due].filter(Boolean).map(e).join(" · ");
+    const deadline = normalizeDateValue(task.due);
+    const facts = [total && `清單已備妥 ${ready} / ${total} 項`, people, deadline && "工作期限 " + deadline, workAppointmentLabel(workAppointment(data, task))].filter(Boolean).map(e).join(" · ");
     const pendingReview = task.reviewRounds.findLast(round => round.state === "waiting");
     return `<article class="project-surface d-work-detail" data-record-target="${e(task.id)}">
       ${breadcrumb(data, task)}
-      <header class="d-work-heading"><div>${facts ? `<p>${facts}</p>` : ""}${signals(data, task)}</div><div class="d-actions">${task.status === "done" ? "" : action(assignmentOf(task) ? "調整指派" : "指派", "assign", task.id)}${action("編輯工作", "edit", task.id)}<label class="d-state-control">工作狀態<select data-task-move="${e(task.id)}">${boardColumns.map(column => `<option value="${column.id}" ${task.status === column.id ? "selected" : ""}>${column.label}</option>`).join("")}</select></label></div></header>
+      <header class="d-work-heading"><div>${facts ? `<div class="d-work-date"><p>${facts}</p>${deadline && task.status !== "done" ? action("將期限改為行程", "deadline-to-appointment", task.id) : ""}</div>` : ""}${signals(data, task)}</div><div class="d-actions">${task.status === "done" ? "" : action(assignmentOf(task) ? "調整指派" : "指派", "assign", task.id)}${action("編輯工作", "edit", task.id)}<label class="d-state-control">工作狀態<select data-task-move="${e(task.id)}">${boardColumns.map(column => `<option value="${column.id}" ${task.status === column.id ? "selected" : ""}>${column.label}</option>`).join("")}</select></label></div></header>
       ${data.tasks.some(work=>work.requests.some(req=>req.items?.some(item=>item.sourceId===task.id))) ? lists.resultCard(data,task) : ""}
       ${dependencyRows(data, task)}
       <div class="d-detail-grid"><div class="d-detail-main">
@@ -678,6 +685,35 @@
       else finish(result);
     } catch (error) { failure(error); }
   });
+  function convertDeadlineForm(projectId, task) {
+    const data = workspaceData[projectId];
+    const date = normalizeDateValue(task.due), time = task.dueTime || "";
+    if (!date || task.status === "done") return;
+    const candidates = data.appointments.filter(item => item.taskId === task.id && item.date === date && item.status !== "cancelled");
+    const when = [date, time].filter(Boolean).join(" ");
+    const intro = e(task.title) + " · " + e(when) + "。儲存後，這個日期將從工作期限移至工作行程。";
+    const choices = [["", "請選擇"], ...candidates.map(item => [item.id, [item.time, item.title, item.place, item.status === "held" && "已舉行"].filter(Boolean).join(" · ")]),
+      ["new", "另建「" + task.title + "」行程"]];
+    form("將期限改為行程", intro, candidates.length ? select("這個日期對應哪一筆行程？", "target", choices, "") :
+      field("行程時間（選填）", "time", time, "time") + field("地點或線上會議網址（選填）", "place"), "改列為行程", values => {
+        const target = candidates.length ? requiredValue(values, "target", "請選擇要使用的行程") : "new";
+        const currentData = workspaceData[projectId];
+        const current = currentData?.tasks.find(work => work.id === task.id);
+        if (!current || normalizeDateValue(current.due) !== date || (current.dueTime || "") !== time || current.status === "done")
+          throw Error("工作期限已變更，請重新開啟工作確認日期");
+        const existing = currentData.appointments.find(item => item.id === target && item.taskId === current.id && item.date === date && item.status !== "cancelled");
+        if (target !== "new" && !existing) throw Error("所選行程已變更，請重新選擇");
+        documentModel.mutate(() => {
+          const item = existing || {id:uid("appointment"), taskId:current.id, title:current.title, date, time:values.has("time") ? textValue(values,"time") : time, place:textValue(values,"place"), note:"", status:"scheduled"};
+          if (!existing) currentData.appointments.push(item);
+          current.dateAppointmentId = item.id;
+          current.due = ""; current.dueTime = "";
+          const scheduled = [item.date, item.time].filter(Boolean).join(" ");
+          record(currentData, current, "工作期限改列為行程", (scheduled === when ? when : when + " → " + scheduled) + " · " + item.title + (existing ? "（沿用既有行程）" : ""));
+        });
+        return alreadySaved;
+      });
+  }
   function appointmentForm(project, data, task, item) {
     const context = [project.name, task?.title].filter(Boolean).map(e).join(" / ");
     const statusField = select("行程狀態", "status", [["scheduled","已安排"],["held","已舉行"],["cancelled","已取消"]], item?.status || "scheduled");
@@ -1029,8 +1065,11 @@
             if (review?.person && !mineToReview) contacts.add(review.person);
             add(mineToReview ? mine : following, mineToReview ? "工作已交回，請核對結果。" : "工作已交回，" + (review?.person ? "等" + review.person + "確認。" : "確認人未指定。"), review?.expectedDate, "open", "查看工作", review?.expectedDate && "預計回覆 " + review.expectedDate);
           } else {
+            const appointment = workAppointment(data, task);
+            const deadline = normalizeDateValue(task.due);
+            if (!deadline && !task.listOutput && appointment?.status === "scheduled" && appointment.date === today) continue;
             const title = task.listOutput ? "「" + task.title + "」已交回結果，請確認工作是否完成。" : (task.status === "queue" ? "待開始" : "進行中") + " · " + task.title;
-            add(mine, title, normalizeDateValue(task.due), "open", "查看工作", normalizeDateValue(task.due) && "工作期限 " + dateLabel(task.due));
+            add(mine, title, deadline || appointment?.date, "open", "查看工作", deadline ? "工作期限 " + dateLabel(deadline) : workAppointmentLabel(appointment));
           }
         }
       }
@@ -1350,6 +1389,7 @@
     }
     const data = workspaceData[projectId]; if (!data) return;
     const task = data.tasks.find(work => work.id === id);
+    if (name === "deadline-to-appointment" && task) return convertDeadlineForm(projectId, task);
     if (name === "appointment") {
       const item = itemId && data.appointments.find(event => event.id === itemId);
       if ((itemId && !item) || (id && !task)) return showToast("找不到這筆行程或所屬工作");
