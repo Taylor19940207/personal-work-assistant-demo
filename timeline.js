@@ -26,10 +26,10 @@ const workTimeline = (() => {
       if (day !== null) events.push({ project, task, day, kind, title, note, ...target });
     }
     if (!focus) {
-      if (data.lifecycle !== "completed") add(null, data.deadlineDate, "plan", "預計對外交付", data.goal.title);
+      if (data.lifecycle !== "completed") add(null, data.deadlineDate, "plan", "預計對外交付", data.goal.title, {delivery:true});
       const deliveries = (data.goal.history || []).filter(row => row.action === "accept");
-      for (const row of deliveries) add(null, row.date || row.at, "actual", "已對外交付", [row.recipient, row.result].filter(Boolean).join(" · "), {refs:row.artifacts});
-      if (!deliveries.length) add(null, data.goal.acceptedAt, "actual", "已對外交付", data.goal.title);
+      for (const row of deliveries) add(null, row.date || row.at, "actual", "已對外交付", [row.recipient, row.result].filter(Boolean).join(" · "), {refs:row.artifacts,delivery:true});
+      if (!deliveries.length) add(null, data.goal.acceptedAt, "actual", "已對外交付", data.goal.title, {delivery:true});
     }
     for (const task of focus ? [focus] : data.tasks) {
       const put = (value, kind, title, note, target) => add(task, value, kind, title, note, target);
@@ -129,7 +129,7 @@ const workTimeline = (() => {
     scopes.set(key,meta);
     return '<section class="chron" data-chron="'+e(key)+'">'+chart(meta)+'</section>';
   }
-  function chart(meta) {
+  function chart(meta, targetEvent) {
     const {scope,focus,rows,events,today,key} = meta;
     const state = states.get(key) || {mode:"all",anchor:today,selected:null};
     states.set(key,state);
@@ -151,6 +151,7 @@ const workTimeline = (() => {
     if (layout !== state.layout) state.selected = null;
     state.layout = layout;
     const groupIndex = ev => Math.floor((ev.day-start)/step);
+    if (targetEvent) state.selected = {i:groupIndex(targetEvent), row:rows.findIndex(row => row.events.includes(targetEvent))};
     const bins = Array.from({length:count},()=>[]);
     for (const ev of events) if (ev.day>=start && ev.day<=end) bins[groupIndex(ev)].push(ev);
     const peak = Math.max(1,...bins.map(b=>b.length));
@@ -180,6 +181,7 @@ const workTimeline = (() => {
         const controls = [];
         if (work && !focus) controls.push(`<button type="button" data-delivery-action="open" ${attrs}>開啟「${e(work.title)}」工作</button>`);
         if (!work && scope === "all") controls.push(`<button type="button" data-open-project="${e(ev.project.id)}">開啟「${e(ev.project.name)}」案件</button>`);
+        if (ev.delivery && ev.kind === "plan" && scope !== "all") controls.push('<button type="button" data-action="open-project-schedule">調整交付日</button>');
         if (ev.route === "open-milestone") controls.push(`<button type="button" data-delivery-action="timeline-edit-date" ${attrs} data-item="${e(ev.item)}">編輯日期</button>`);
         if (ev.route === "open-request") controls.push(`<button type="button" data-delivery-action="open-request" ${attrs} data-item="${e(ev.item)}">查看往來紀錄</button>`);
         if (ev.record || ev.issue) controls.push(`<button type="button" data-open-project-tab="${ev.tab || "records"}" data-project-id="${e(ev.project.id)}" data-record-id="${e(ev.record || ev.issue)}">${ev.issue ? "查看問題" : "查看原始紀錄"}</button>`);
@@ -194,8 +196,8 @@ const workTimeline = (() => {
         const title = ev.kind === "current" && work ? `${work.title} · ${ev.title}` : ev.title;
         const label = `<i class="chron-mark ${ev.kind}"></i><strong>${e(title)}</strong>`;
         const body = `<div class="chron-reading"><small>${e([labels[ev.kind],context].filter(Boolean).join(" · "))}</small>${ev.note ? `<p>${e(ev.note)}</p>` : ""}${links}<div class="chron-actions">${controls.join("")}</div></div>`;
-        if (items.length === 1) return `<article class="chron-event" data-event-key="${eventKey}"><div class="chron-event-title">${label}</div>${body}</article>`;
-        return `<details class="chron-event" data-event-key="${eventKey}"><summary><time>${short(ev.day)}</time>${label}<span aria-hidden="true">⌄</span></summary>${body}</details>`;
+        if (items.length === 1) return `<article class="chron-event" tabindex="-1" data-event-key="${eventKey}"><div class="chron-event-title">${label}</div>${body}</article>`;
+        return `<details class="chron-event" ${ev === targetEvent ? "open" : ""} data-event-key="${eventKey}"><summary><time>${short(ev.day)}</time>${label}<span aria-hidden="true">⌄</span></summary>${body}</details>`;
       }).join("")+'</div>';
     }
     const lines=rows.map((row,index)=>{
@@ -295,5 +297,19 @@ const workTimeline = (() => {
     const target = entry?.querySelector('[data-delivery-action="open"]') || root.querySelector(`.chron-label[data-work="${CSS.escape(workId)}"]`) || root.querySelector('[aria-expanded="true"][data-chron-bin]');
     target?.focus({preventScroll:true});
   }
-  return {render, origin, restore};
+  function focusDelivery(projectId, date) {
+    const key = projectId + "/";
+    const root = projectRoomContent.querySelector(`[data-chron="${CSS.escape(key)}"]`);
+    const meta = scopes.get(key);
+    const day = dayOf(date);
+    const event = meta?.events.findLast(ev => ev.delivery && ev.day === day && ev.kind === (workspaceData[projectId].lifecycle === "completed" ? "actual" : "plan"));
+    if (!root || !event) return;
+    const state = states.get(key);
+    if (state.mode === "week") state.anchor = day;
+    root.innerHTML = chart(meta, event);
+    const target = root.querySelector(".chron-detail article, .chron-detail details[open] > summary");
+    target?.focus({preventScroll:true});
+    target?.scrollIntoView({block:"nearest",behavior:"instant"});
+  }
+  return {render, origin, restore, focusDelivery};
 })();

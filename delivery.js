@@ -175,7 +175,7 @@
     const done = s.direct.filter(task => task.status === "done").length;
     const progress = s.direct.length ? Math.round(done / s.direct.length * 100) : 0;
     let state = base.state;
-    if (data.lifecycle === "active" && !data.tasks.length) state = "待新增工作";
+    if (data.lifecycle === "active" && !data.tasks.length && !s.issues.length && base.deadline.state !== "overdue") state = "待安排工作";
     if (data.lifecycle === "active" && progress === 100) state = "已備妥，待對外交付";
     else if (data.lifecycle === "active" && state === "已完成") state = "待確認交付範圍";
     if (data.lifecycle === "completed" && (s.incomplete.length || s.changed)) state = "已交付，有後續變動";
@@ -209,10 +209,11 @@
     const paths = [], nodes = [];
     const projectY = new Map();
     let cursor = 65, maxDepth = 1, projectX = 0;
-    const columns = !expanded.size && workspace.clientWidth >= 1100 ? 2 : 1;
+    const projects = getPortfolioProjects();
+    const columns = projects.length > 1 && !expanded.size && workspace.clientWidth >= 1100 ? 2 : 1;
     let bandStart = 65, bandBottom = 65;
     const nodeWidth = 260, step = 350, row = 112;
-    function connect(x1, y1, x2, y2, key) { paths.push(`<path data-motion-edge="${e(key)}" d="M${x1} ${y1} C${x1 + 48} ${y1},${x2 - 48} ${y2},${x2} ${y2}"/>`); }
+    function connect(x1, y1, x2, y2, key, delivery = false) { paths.push(`<path ${delivery ? 'class="d-delivery-edge"' : ""} data-motion-edge="${e(key)}" d="M${x1} ${y1} C${x1 + 48} ${y1},${x2 - 48} ${y2},${x2} ${y2}"/>`); }
     function layoutTask(project, task, depth) {
       maxDepth = Math.max(maxDepth, depth);
       const data = workspaceData[project.id];
@@ -240,21 +241,33 @@
       nodes.push(`<div data-motion-key="more/${e(id)}" class="d-map-more" style="left:${x}px;top:${y - 22}px">${action(`再顯示 ${Math.min(4, count)} 項 · 尚有 ${count} 項`, "more", id, `data-project="${e(projectId)}"`)}</div>`);
       return { x, y, key: `more/${id}` };
     }
-    for (const [projectIndex, project] of getPortfolioProjects().entries()) {
+    for (const [projectIndex, project] of projects.entries()) {
       projectX = (projectIndex % columns) * 715;
       cursor = bandStart;
       const data = workspaceData[project.id]; normalize(data);
+      const goalIndex = nodes.length;
       const roots = children(data);
       const limit = visibleCounts.get(project.id) || 4;
       const laid = roots.slice(0, limit).map(task => layoutTask(project, task, 1));
       if (roots.length > limit) laid.push(moreNode(project.id, roots.length - limit, 1, project.id));
-      if (!laid.length) { laid.push({ x: projectX + 395, y: cursor + row / 2 }); cursor += row; }
-      const y = (laid[0].y + laid.at(-1).y) / 2;
+      const delivered = data.lifecycle === "completed";
+      const deliveryDate = delivered ? data.goal.acceptedAt?.slice(0,10) : data.deadlineDate;
+      if (deliveryDate) {
+        const x = projectX + 45 + step, y = cursor + row / 2;
+        cursor += row;
+        const label = delivered ? "已對外交付" : "預計交付";
+        nodes.push(`<button type="button" class="d-delivery-node" data-motion-key="delivery/${e(project.id)}" data-delivery-action="show-delivery" data-project="${e(project.id)}" data-map-project="${e(project.id)}" data-delivery-date="${e(deliveryDate)}" aria-label="${e(project.name)}，${label} ${e(deliveryDate)}，查看案件時間軸" style="left:${x}px;top:${y}px"><i class="chron-mark ${delivered ? "actual" : "plan"}" aria-hidden="true"></i><span>${label}<time datetime="${e(deliveryDate)}">${e(deliveryDate)}</time></span></button>`);
+        laid.push({x,y,key:"delivery-date",delivery:true});
+      }
+      const y = laid.length ? (laid[0].y + laid.at(-1).y) / 2 : cursor + row / 2;
+      if (!laid.length) cursor += row;
       projectY.set(project.id, y);
-      laid.forEach(child => connect(projectX + 305, y, child.x, child.y, `${project.id}/goal/${child.key || "empty"}`));
+      laid.forEach(child => connect(projectX + 305, y, child.x, child.y, `${project.id}/goal/${child.key}`, child.delivery));
       const s = summary(data);
-      nodes.push(`<article data-motion-key="goal/${e(project.id)}" class="d-map-goal" style="left:${projectX + 45}px;top:${y - 56}px;--project-color:${project.color}" data-map-project="${e(project.id)}" data-has-issues="${Boolean(s.issues.length)}">
-        <button type="button" data-open-project="${e(project.id)}"><small>交付目標 · ${e(project.name)}</small><strong>${e(data.goal.title || project.name)}</strong><span>${e(getProjectSnapshot(project).state)} · ${s.direct.length - s.incomplete.length}/${s.direct.length} 項必要工作</span><small>${data.deadlineDate ? "預計交付 " + dateLabel(data.deadlineDate) : "交付日待定"}${s.issues.length ? ` · ${s.issues.length} 問題` : ""}</small></button>
+      const goal = data.goal.title || project.name;
+      const progress = s.direct.length ? " · 已完成 " + (s.direct.length - s.incomplete.length) + "/" + s.direct.length + " 項必要工作" : "";
+      nodes.splice(goalIndex, 0, `<article data-motion-key="goal/${e(project.id)}" class="d-map-goal" style="left:${projectX + 45}px;top:${y}px;--project-color:${project.color}" data-map-project="${e(project.id)}" data-has-issues="${Boolean(s.issues.length)}">
+        <button type="button" data-open-project="${e(project.id)}"><small>${goal === project.name ? "交付目標" : e(project.name) + " · 交付目標"}</small><strong>${e(goal)}</strong><span>${e(getProjectSnapshot(project).state)}${progress}</span></button>
       </article>`);
       bandBottom = Math.max(bandBottom, cursor + 64);
       if (projectIndex % columns === columns - 1) bandStart = bandBottom;
@@ -339,29 +352,23 @@
   }
   function overview(project, data) {
     const s = summary(data);
-    if (data.lifecycle === "active" && !data.tasks.length && !data.issues.length && !data.files.length &&
-        !data.decisions.length && !data.goal.history?.length && data.activity.length <= 1) {
-      return `<div class="project-surface d-overview d-start"><h2>${e(data.goal.title || project.name)}</h2>
-        ${data.deadlineDate ? "<p>預計交付 "+dateLabel(data.deadlineDate)+"</p>" : ""}
-        <p>尚未安排工作。</p>${action("新增第一項工作", "create")}</div>`;
-    }
     const today = localISODate();
     const coordination = data.tasks.filter(task => task.status !== "done").flatMap(task =>
       outstandingRequests(data, task).map(request => ({task, request, brief:requestBrief(data, request, today)})));
     const dates = data.tasks.flatMap(task => task.milestones.filter(item => !item.actualDate).map(item => ({ task, item }))).sort((a, b) => (a.item.committedDate || a.item.plannedDate || "9999").localeCompare(b.item.committedDate || b.item.plannedDate || "9999"));
     const risks = data.tasks.map(task => dependencyRows(data,task,true)).join("");
     const needsAttention = risks || coordination.length || s.issues.length || s.overdue.length || s.changed;
-    const canDeliver = !s.incomplete.length && !s.changed;
+    const canDeliver = data.tasks.length > 0 && !s.incomplete.length && !s.changed;
     return `<div class="project-surface d-overview">
-      <section class="d-goal-summary"><div><p class="d-eyebrow">交付目標</p><h2>${e(data.goal.title || project.name)}</h2>${data.goal.criteria ? `<p>${e(data.goal.criteria)}</p>` : ""}<div class="d-goal-meta">${data.deadlineDate ? `<span>預計交付 ${dateLabel(data.deadlineDate)}</span>` : ""}<span>${s.direct.length - s.incomplete.length} / ${s.direct.length} 項必要工作已完成</span>${data.goal.acceptedAt ? `<span>實際交付 ${dateLabel(data.goal.acceptedAt.slice(0, 10))}</span>` : ""}</div></div><div class="d-actions">${action("設定目標", "goal")}${data.lifecycle === "completed" || canDeliver ? action(data.lifecycle === "completed" ? "重新開啟案件" : "記錄對外交付", "accept-goal") : ""}</div></section>
+      ${data.tasks.length || data.lifecycle !== "active" ? `<section class="d-goal-summary"><div><p class="d-eyebrow">交付目標</p><h2>${e(data.goal.title || project.name)}</h2>${data.goal.criteria ? `<p>${e(data.goal.criteria)}</p>` : ""}<div class="d-goal-meta">${data.deadlineDate ? `<span>預計交付 ${dateLabel(data.deadlineDate)}</span>` : ""}<span>${s.direct.length - s.incomplete.length} / ${s.direct.length} 項必要工作已完成</span>${data.goal.acceptedAt ? `<span>實際交付 ${dateLabel(data.goal.acceptedAt.slice(0, 10))}</span>` : ""}</div></div><div class="d-actions">${action("設定目標", "goal")}${data.lifecycle === "completed" || canDeliver ? action(data.lifecycle === "completed" ? "重新開啟案件" : "記錄對外交付", "accept-goal") : ""}</div></section>` : ""}
       ${workTimeline.render([project], project.id)}
       ${(data.goal.history || []).some(entry => entry.action === "accept") ? `<details><summary>歷次對外交付</summary>${data.goal.history.filter(entry => entry.action === "accept").map(entry => `<p>${e(entry.date || entry.at.slice(0,10))} · ${e(entry.recipient || "未記錄對象")} · ${e(entry.result)}</p>${(entry.artifacts || []).map(ref => {
         const version = documentModel.find(ref.documentId)?.versions.find(v => v.id === ref.versionId);
         if (version?.blobId) return `<button type="button" class="d-action" data-workspace-action="open-file" data-file="${e(ref.documentId)}" data-version="${e(ref.versionId)}">${e(ref.name)} ↗</button>`;
         return safeURL(version?.url) ? `<a href="${e(version.url)}" target="_blank" rel="noopener noreferrer">${e(ref.name)} ↗</a>` : e(ref.name);
       }).join("")}`).join("")}</details>` : ""}
-      <div class="d-overview-grid"><section><div class="d-section-title"><h3>案件工作</h3>${action("＋ 新增工作", "create")}</div>
-      ${children(data).map(task => workRow(project, task)).join("") || `<div class="d-empty">尚無工作。</div>`}</section>
+      <div class="d-overview-grid"><section><div class="d-section-title"><h3>案件工作</h3>${action(data.tasks.length ? "＋ 新增工作" : "新增第一項工作", "create")}</div>
+      ${children(data).map(task => workRow(project, task)).join("") || `<div class="d-empty">尚未安排工作。${data.goal.criteria ? "<p>驗收標準：" + e(data.goal.criteria) + "</p>" : ""}</div>`}</section>
       <aside class="d-side">
         ${needsAttention ? `<section><h3>待辦與跟進</h3>${risks}
           ${s.overdue.map(task => `<button type="button" class="d-context-link" data-delivery-action="open" data-work="${e(task.id)}"><strong>${e(task.title)}</strong><span>工作逾期 · 原訂 ${dateLabel(task.due)} 完成</span></button>`).join("")}
@@ -1142,6 +1149,13 @@
     if (!button) return;
     const name = button.dataset.deliveryAction, id = button.dataset.work || "", itemId = button.dataset.item;
     const projectId = button.dataset.project || uiState.projectId;
+    if (name === "show-delivery") {
+      openProjectRoom(projectId, "overview");
+      requestAnimationFrame(() => {
+        if (uiState.projectId === projectId && uiState.projectTab === "overview") workTimeline.focusDelivery(projectId, button.dataset.deliveryDate);
+      });
+      return;
+    }
     if (name === "brief-jump") {
       const heading = document.getElementById(button.getAttribute("aria-controls"));
       heading?.focus({preventScroll:true});
@@ -1370,8 +1384,8 @@
   };
   window.removeEventListener("popstate", oldRoute);
   window.addEventListener("popstate", routeFromLocation);
-  document.querySelector(".map-legend").innerHTML = `<span>交付目標</span><span>→ 主要工作</span><span>→ 子工作</span><span><i class="legend-mark current"></i>進行中的工作</span>`;
-  document.querySelector(".map-note p").textContent = "雙指或滾輪縮放，拖曳畫布移動。點工作名稱可查看進度，＋ 展開子工作。連線表示所屬關係，不代表先後順序。";
+  document.querySelector(".map-legend").innerHTML = `<span>交付目標</span><span>→ 主要工作</span><span>→ 子工作</span><span><i class="chron-mark plan"></i>預計交付</span><span><i class="legend-mark current"></i>進行中的工作</span>`;
+  document.querySelector(".map-note p").textContent = "雙指或滾輪縮放，拖曳畫布移動。點工作名稱可查看進度，＋ 展開子工作。實線連接所屬工作，虛線連接交付日期。";
   const lists = createRequirementLists({form, field, select, action, uid, record, normalize, artifactFields, withArtifacts, saved:alreadySaved, dialog});
   saveWorkspaceData(); routeFromLocation();
   // Explicit model API for regression checks; all mutations still go through the same functions.

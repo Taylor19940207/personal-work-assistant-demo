@@ -522,7 +522,7 @@
     originalRoom();
     const data = workspaceData[uiState.projectId]; if (!data) return;
     const heading = projectRoomHeader.querySelector(".project-heading-copy");
-    if (!projectRoom.classList.contains("reading-work")) heading?.insertAdjacentHTML("beforeend", `<div class="w-project-tools">${button("管理案件", "manage-project")}${data.lifecycle === "archived" ? `<span>已封存</span>${button("還原案件", "restore-project")}` : ""}</div>`);
+    if (!projectRoom.classList.contains("reading-work")) heading?.insertAdjacentHTML("beforeend", `<div class="w-project-tools">${button("管理案件", "manage-project")}${uiState.projectTab === "overview" && !data.tasks.length && data.lifecycle === "active" ? '<button type="button" class="d-action" data-delivery-action="goal">設定目標</button>' : ""}${data.lifecycle === "archived" ? `<span>已封存</span>${button("還原案件", "restore-project")}` : ""}</div>`);
     if (data.lifecycle === "archived") projectRoomContent.querySelector('[data-delivery-action="accept-goal"]')?.remove();
     const work = data.tasks.find(task => task.id === uiState.focusRecordId);
     if (uiState.projectTab === "board" && work) {
