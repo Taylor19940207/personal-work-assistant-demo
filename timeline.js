@@ -86,7 +86,7 @@ const workTimeline = (() => {
     for (const decision of data.decisions) {
       const issue = data.issues.find(row => row.id === decision.issueId);
       const task = data.tasks.find(row => row.id === issue?.taskId);
-      if (!focus || focus.id === task?.id) add(task, decision.date, "actual", "決策 · " + decision.title, decision.detail, {record:issue?.id || decision.id, tab:"records"});
+      if (!focus || focus.id === task?.id) add(task, decision.date, "actual", "處理決定 · " + decision.title, decision.detail, {record:issue?.id || decision.id, tab:"records"});
     }
     for (const entry of data.activity) {
       // Task and request transitions above already have their own dated source.

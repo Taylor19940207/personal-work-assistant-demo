@@ -7,15 +7,15 @@ function workUsesFile(task, fileId) {
 // A list belongs to one request. Its rows describe expected results, separately from filenames.
 function createRequirementLists({ form, field, select, action, uid, record, normalize, artifactFields, withArtifacts, saved, dialog }) {
   const e = escapeHTML;
-  const statuses = { missing: "待準備", checking: "待核對", revise: "需補正", ready: "已備妥" };
-  const opened = new Set();
+  const statuses = { missing: "待準備", checking: "待核對", revise: "待補件", ready: "已備妥" };
+  const opened = new Set(), readyOpened = new Set();
   function names(text) { return text.split(/\r?\n/).map(line => line.trim()).filter(Boolean); }
   function newRows(text) {
     return names(text).map(title => ({id:uid("item"), title, state:"missing", note:"", refs:[]}));
   }
   function fields() {
     return field("項目名稱（每行一項，可直接貼上）", "itemNames", "", "textarea") +
-      '<details class="d-work-options"><summary>清單名稱、對象與共同期限</summary><div>' +
+      '<details class="d-work-options"><summary>清單名稱、往來對象與期限</summary><div>' +
       field("清單名稱", "listTitle") + field("對象", "listPerson") + field("共同期限", "listDue", "", "date") + '</div></details>';
   }
   function create(task, values) {
@@ -30,7 +30,7 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
   function workResult(work) {
     if (!work) return null;
     const handoff = work.requests?.find(req => req.assignment)?.rounds.at(-1);
-    const received = handoff?.receivedDate && handoff.state !== "revise" ? {id:handoff.id,refs:handoff.artifacts || [],note:handoff.note || "",at:handoff.recordedAt} : null;
+    const received = handoff?.receivedDate && handoff.state !== "revise" ? {id:handoff.id,refs:handoff.artifacts || [],note:handoff.note || "",at:handoff.recordedAt,receivedDate:handoff.receivedDate} : null;
     if (work.listOutput && (!received || work.listOutput.at >= received.at)) return work.listOutput;
     return received;
   }
@@ -51,11 +51,11 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     return previous && JSON.stringify(previous)===JSON.stringify(snapshot);
   }
   function stats(data,req) { return req.items.filter(item => rowView(data,item).state === "ready").length; }
-  function refButton(data,ref) {
+  function refButton(data,ref,context="") {
     const file = data.files.find(f => f.id === ref.fileId);
     const v = file?.versions.find(v => v.id === ref.versionId);
-    const label = e(ref.name) + " · " + e(ref.versionLabel);
-    if (v?.blobId) return `<button type="button" class="d-action" data-workspace-action="open-file" data-file="${e(file.documentId)}" data-version="${e(v.id)}">${label} ↗</button>`;
+    const label = e(ref.name || v?.name || "附件") + " · " + e(ref.versionLabel || (v ? "v"+(file.versions.indexOf(v)+1) : "版本索引"));
+    if (v?.blobId) return `<button type="button" class="d-action" data-workspace-action="open-file" data-file="${e(file.documentId)}" data-version="${e(v.id)}" data-preview-context="${e(context)}">${label}</button>`;
     if (v?.url && /^https?:\/\//i.test(v.url)) return `<a href="${e(v.url)}" target="_blank" rel="noopener noreferrer">${label} ↗</a>`;
     return `<span>${label}</span>`;
   }
@@ -67,18 +67,26 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     for (const item of req.items) {
       const {state,source,output,refs} = rowView(data,item);
       const hint = [state==="ready" && submitted(req,itemSnapshot(data,item)) ? "已提交" : "",item.note,source && (output ? "來自" : "等") + "「" + source.title + "」",output?.note,item.stepId && task.checklist.find(s=>s.id===item.stepId && !s.done)?.title,refs.length ? refs.length + " 份資料" : ""].filter(Boolean).join(" · ");
-      const row = `<div class="rl-row"><button type="button" class="rl-item" data-delivery-action="list-item" data-work="${e(task.id)}" data-item="${e(req.id)}" data-row="${e(item.id)}"><strong>${e(item.title)}</strong><span data-state="${e(state)}">${statuses[state]}</span>${hint ? "<small>"+e(hint)+"</small>" : ""}</button>${source ? action("查看「"+e(source.title)+"」的進度 ↗","list-visit",task.id,`data-item="${e(req.id)}" data-row="${e(item.id)}"`) : ""}</div>`;
+      const context = [task.title,req.title,item.title].join(" / ");
+      const files = refs.map(ref=>refButton(data,ref,context)).join(" ");
+      const documents = refs.length > 1 ? `<details class="rl-files"><summary>查看 ${refs.length} 份資料</summary>${files}</details>` : files;
+      const visit = source ? action("查看「"+e(source.title)+"」的進度 ↗","list-visit",task.id,`data-item="${e(req.id)}" data-row="${e(item.id)}"`) : "";
+      const row = `<div class="rl-row"><button type="button" class="rl-item" data-delivery-action="list-item" data-work="${e(task.id)}" data-item="${e(req.id)}" data-row="${e(item.id)}"><strong>${e(item.title)}</strong><span data-state="${e(state)}">${statuses[state]}</span>${hint ? "<small>"+e(hint)+"</small>" : ""}</button>${documents || visit ? `<div class="rl-row-actions">${documents}${visit}</div>` : ""}</div>`;
       (state==="ready" ? readyRows : dueRows).push(row);
     }
-    const rows=dueRows.join("")+(readyRows.length ? `<details class="rl-ready"><summary>查看已備妥項目 · ${readyRows.length}</summary>${readyRows.join("")}</details>` : "");
+    const rows=dueRows.join("")+(readyRows.length ? `<details class="rl-ready" data-ready-list="${e(req.id)}" ${readyOpened.has(req.id) ? "open" : ""}><summary>查看已備妥項目 · ${readyRows.length}</summary>${readyRows.join("")}</details>` : "");
     const history = req.rounds.map((round,i)=>`<details><summary>第 ${i+1} 次提交 · ${e(round.sentDate)} · ${e(round.person)}</summary>${round.items ? "" : e(round.note || "")+" "+(round.artifacts || []).map(ref=>refButton(data,ref)).join(" ")}${(round.items || []).map(s=>`<p><strong>${e(s.title)}</strong> ${e(s.note)} ${s.artifacts.map(ref=>refButton(data,ref)).join(" ")}</p>`).join("")}</details>`).join("");
     return `<details class="rl-list" data-request-id="${e(req.id)}" data-list-disclosure ${opened.has(req.id) ? "open" : ""}><summary><strong>${e(req.title)}</strong><span>${count}/${req.items.length} 已備妥</span></summary><p class="d-help">${e([req.person,req.due,req.state==="waiting"?"上次提交待確認":req.state==="accepted"?"已確認":""].filter(Boolean).join(" · "))}</p>${rows}
-      ${req.unfiled?.length ? button("歸位待整理檔案 · "+req.unfiled.length,"unfiled") : ""}<div class="d-actions">${button("加入項目","append")}${button("加入多個檔案","batch")}${button("清單設定","settings")}
+      ${req.unfiled?.length ? button("整理未分類的檔案 · "+req.unfiled.length,"unfiled") : ""}<div class="d-actions">${button("加入項目","append")}${button("加入多個檔案","batch")}${button("清單設定","settings")}
       ${req.state==="waiting" ? button("對方已確認","confirm") : sendable ? button("記錄提交","submit") : ""}</div>${history}</details>`;
   }
   document.addEventListener("toggle",event=>{
     const el=event.target;
-    if (el.matches?.("[data-list-disclosure]") && el.isConnected) {
+    if (!el.isConnected) return;
+    if (el.matches?.("[data-ready-list]")) {
+      if (el.open) readyOpened.add(el.dataset.readyList); else readyOpened.delete(el.dataset.readyList);
+    }
+    if (el.matches?.("[data-list-disclosure]")) {
       if(el.open) opened.add(el.dataset.requestId); else opened.delete(el.dataset.requestId);
     }
   },true);
@@ -97,7 +105,7 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     const {source,state}=rowView(data,item);
     const currentId = item.sourceId || "";
     const candidates = data.tasks.filter(work => work.id !== task.id && !related(data, work.id, task.id));
-    const choices = [["", currentId ? "解除關聯" : "自行準備"]];
+    const choices = [["", currentId ? "改為自行準備" : "自行準備"]];
     for (const work of candidates) choices.push([work.id, work.title]);
     if (currentId && !candidates.some(work => work.id === currentId)) choices.push([currentId, source?.title || "原工作已移除"]);
     const delegateValue = "@new-assignment";
@@ -106,12 +114,12 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     const history = item.history?.length ? '<details><summary>項目紀錄 · '+item.history.length+'</summary>'+item.history.slice().reverse().map(entry=>
       '<p>'+e(entry.date)+' · '+e(statuses[entry.state])+' · '+e(entry.note)+'</p>'+entry.refs.map(ref=>refButton(data,ref)).join(" ")).join("")+'</details>' : "";
     const replace = item.refs.length ? select("上傳檔案用途","replace",[["","加入另一份資料"],...item.refs.map(ref=>[ref.fileId,"更新 "+ref.name])],"") : "";
-    form(e(item.title),e(req.title),
-      select("關聯工作（選填）", "source", choices, currentId) +
-      '<div data-new-assignment hidden>'+field("交給誰","assignee")+field("交回日期（選填）","due","","date")+'</div>' +
+    form(e(item.title),e([task.title,req.title].join(" / ")),
       '<div data-link-preview aria-live="polite"></div>' +
       select("目前狀態","rowState",Object.entries(statuses),state) +
       field("缺什麼／確認紀錄（選填）","rowNote",item.note,"textarea") +
+      select("從工作取得（選填）", "source", choices, currentId) +
+      '<div data-new-assignment hidden>'+field("交給誰","assignee")+field("交回日期（選填）","due","","date")+'</div>' +
       '<details class="d-work-options"><summary>加入文件或網址</summary><div>'+artifactFields(data,task)+replace+field("來源網址","rowUrl","","url")+
       ((item.refs || []).length ? '<fieldset><legend>保留的資料</legend>'+item.refs.map((ref,i)=>`<label class="d-check"><input type="checkbox" name="keep" value="${i}" checked><span>${e(ref.name)} · ${e(ref.versionLabel)}</span></label>`).join("")+'</fieldset>' : "")+'</div></details>'+
       history + '<details class="d-work-options"><summary>修改項目名稱</summary>'+field("名稱","rowTitle",item.title,"text",true)+action("移除此列","list-remove",task.id,'data-item="'+e(req.id)+'" data-row="'+e(item.id)+'"')+'</details>'+
@@ -123,7 +131,7 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
         const newSource = candidates.find(work => work.id === selectedId) || (selectedId === currentId ? source : null);
         if (selectedId && !delegate && !newSource && selectedId !== currentId) throw Error("請重新選擇工作");
         const assignee = delegate ? values.get("assignee").trim() : "";
-        if (delegate && !assignee) throw Error("請填承接人");
+        if (delegate && !assignee) throw Error("請填負責人");
         const linkedOutput = workResult(newSource);
         const sourceChanged = selectedId !== currentId;
         const stepTitle = (values.get("step") || "").trim();
@@ -131,8 +139,8 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
         if(url && !/^https?:\/\//i.test(url)) throw Error("請使用 http 或 https 網址");
         const title=values.get("rowTitle").trim(); if(!title) throw Error("請填項目名稱");
         let next=values.get("rowState"); const note=values.get("rowNote").trim();
-        if(next==="revise" && !note) throw Error("請記下需要補正的內容");
-        if((newSource || delegate) && !linkedOutput && next==="ready") throw Error("請先登錄來源工作的交回結果，或解除連結");
+        if(next==="revise" && !note) throw Error("請寫下要補什麼或改哪裡");
+        if((newSource || delegate) && !linkedOutput && next==="ready") throw Error("請先登錄那項工作交回的結果，或改為自行準備");
         const kept=values.getAll("keep").map(i=>item.refs[Number(i)]);
         const uploading=values.getAll("upload").some(f=>f.name);
         const replaceId=values.get("replace");
@@ -171,7 +179,7 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
           const relationship = sourceChanged ? (source?.title || "自行準備")+" → "+(delegate ? title+"（"+assignee+"）" : newSource?.title || "自行準備") : "";
           record(data,task,item.title+" · "+statuses[next],[relationship,note,stepTitle && "待辦："+stepTitle].filter(Boolean).join(" · "));
         },context);
-      });
+      }, () => focusRow(req.id,item.id));
     const editor = dialog.querySelector("form");
     const sourceField = editor.elements.source;
     const stateField = editor.elements.rowState;
@@ -184,10 +192,10 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
       const retained = item.refs.filter((_,i)=>editor.querySelector('[name="keep"][value="'+i+'"]')?.checked);
       const attachments = uniq([...retained,...(result?.refs || [])]);
       const message = delegate ? "" : work ? (result ? "交回結果" : "等待這項工作交回結果") :
-        currentId ? "儲存後解除關聯" : candidates.length ? "" : "本案目前沒有其他可關聯的工作";
+        currentId ? "儲存後將改為自行準備" : candidates.length ? "" : "這個案件還沒有其他工作可選";
       editor.querySelector("[data-link-preview]").innerHTML =
         (message ? "<p>"+e(message)+(result?.note ? " · "+e(result.note) : "")+"</p>" : "")+
-        attachments.map(ref=>refButton(data,ref)).join(" ");
+        attachments.map(ref=>refButton(data,ref,[task.title,req.title,item.title].join(" / "))).join(" ");
       const assignment = editor.querySelector("[data-new-assignment]");
       assignment.hidden = !delegate;
       editor.elements.assignee.disabled = !delegate;
@@ -228,6 +236,39 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     ];
     return dependencies.some(id => id && related(data,id,target,seen));
   }
+  function focusRow(requestId,rowId,position) {
+    const list = projectRoomContent.querySelector(`[data-request-id="${CSS.escape(requestId)}"]`);
+    const row = list?.querySelector(`.rl-item[data-row="${CSS.escape(rowId)}"]`);
+    if (!row) return;
+    const opening = [];
+    for (let el = row.parentElement; el && el !== list.parentElement; el = el.parentElement) {
+      if (el.tagName === "DETAILS" && !el.open) {
+        opening.push(el); el.classList.add("rl-restoring"); el.open = true;
+      }
+    }
+    // Wait for the expanded row to accept focus and the mobile dialog to unlock scrolling.
+    requestAnimationFrame(() => {
+      if (!row.isConnected || document.querySelector("dialog[open]")) return;
+      if (position) {
+        projectRoomContent.scrollTop = position.room;
+        window.scrollTo({top:position.page,behavior:"instant"});
+      }
+      const rect = row.getBoundingClientRect();
+      const pane = projectRoomContent.getBoundingClientRect();
+      const top = Math.max(0,pane.top,document.querySelector(".m-toolbar")?.getBoundingClientRect().bottom || 0);
+      if (rect.top < top || rect.bottom > Math.min(innerHeight,pane.bottom)) row.scrollIntoView({block:"center",behavior:"instant"});
+      row.focus({preventScroll:true});
+      opening.forEach(el=>el.classList.remove("rl-restoring"));
+    });
+  }
+  function resultCard(data,task) {
+    const output = workResult(task);
+    const recordOutput = action(output ? "再次交回工作結果" : "交回工作結果","list-output",task.id);
+    if (!output) return recordOutput;
+    const date = output.receivedDate ? "收件 "+output.receivedDate : output.at ? "登錄 "+localISODate(new Date(output.at)) : "";
+    const files = (output.refs || []).map(ref=>refButton(data,ref,task.title+" / 已交回的結果")).join(" ");
+    return `<section class="rl-result"><div class="d-section-title"><h3>已交回的結果</h3>${recordOutput}</div>${date ? `<small>${e(date)}</small>` : ""}${output.note ? `<p>${e(output.note)}</p>` : ""}${files}</section>`;
+  }
   function outputForm(data,task){
     form("交回工作結果",e(task.title),artifactFields(data,task)+field("網址","url","","url")+field("結果說明","note","","textarea"),"記錄交回",values=>{
       const url=values.get("url").trim(),note=values.get("note").trim();
@@ -260,7 +301,7 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     });
   }
   function batchForm(data,task,req){
-    form("多個檔案歸位",e(req.title),'<label>選取檔案<input type="file" name="batch" multiple></label><label>或選資料夾<input type="file" name="folder" webkitdirectory multiple></label><div data-map-files></div>',"存入清單",values=>{
+    form("把檔案分到清單項目",e(req.title),'<label>選取檔案<input type="file" name="batch" multiple></label><label>或選資料夾<input type="file" name="folder" webkitdirectory multiple></label><div data-map-files></div>',"存入清單",values=>{
       const files=[...dialog.querySelector('[name="batch"]').files,...dialog.querySelector('[name="folder"]').files];
       if(!files.length) throw Error("請先選取檔案");
       const targets=files.map((_,i)=>req.items.find(item=>item.id===values.get("map-"+i)));
@@ -280,7 +321,7 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     const render=()=>{
       const prior=new Map(visibleFiles.map((file,i)=>[file,dialog.querySelector('[name="map-'+i+'"]').value]));
       visibleFiles=inputs.flatMap(input=>[...input.files]);
-      const options=[["","待歸位"],...req.items.map(item=>[item.id,item.title]),["skip","略過這份檔案"]];
+      const options=[["","先不分類"],...req.items.map(item=>[item.id,item.title]),["skip","略過這份檔案"]];
       dialog.querySelector("[data-map-files]").innerHTML=visibleFiles.map((file,i)=>
         select(e(file.webkitRelativePath || file.name),"map-"+i,options,prior.get(file) || "")).join("");
     };
@@ -306,13 +347,13 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     }
     if(name==="list-submit") return submitForm(data,task,req);
     if(name==="list-unfiled") return form("把檔案放到對應項目",e(req.title),
-      req.unfiled.map((ref,i)=>select(e(ref.name),"place-"+i,[["","暫留待歸位"],...req.items.map(item=>[item.id,item.title])],"")).join(""),"儲存歸位",values=>{
+      req.unfiled.map((ref,i)=>select(e(ref.name),"place-"+i,[["","先不分類"],...req.items.map(item=>[item.id,item.title])],"")).join(""),"儲存分類",values=>{
         if (!req.unfiled.some((_,i)=>values.get("place-"+i))) throw Error("請至少選一個項目");
         req.unfiled=req.unfiled.filter((ref,i)=>{
           const item=req.items.find(row=>row.id===values.get("place-"+i));if(!item)return true;
           item.refs=uniq([...item.refs,ref]);item.state="checking";return false;
         });
-        editable(req);record(data,task,"檔案已歸位",req.title);
+        editable(req);record(data,task,"檔案已分到清單項目",req.title);
       });
     if(name==="list-batch") return batchForm(data,task,req);
     if(name==="list-settings") return form("清單設定",e(task.title),field("清單名稱","title",req.title,"text",true)+field("對象","person",req.person)+field("共同期限","due",req.due,"date"),"儲存",v=>{
@@ -327,5 +368,5 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
       record(data,task,"對方已確認",req.title); if(saveWorkspaceData()) refreshProjectDataSurface();
     }
   }
-  return {create,fields,card,handle,stats,newRows};
+  return {create,fields,card,handle,stats,newRows,focusRow,resultCard};
 }

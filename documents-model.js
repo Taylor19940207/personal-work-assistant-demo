@@ -16,7 +16,7 @@
       ids.add(doc.id);
       if (new Set(doc.versions.map(v => v?.id)).size !== doc.versions.length || doc.versions.some(v => !v || typeof v.id !== "string")) throw new Error("文件版本格式不正確");
       if (doc.currentVersionId && !doc.versions.some(v => v.id === doc.currentVersionId)) throw new Error("找不到文件目前版本");
-      if (doc.events.some(event => !event || typeof event.id !== "string" || event.versionId && !doc.versions.some(v => v.id === event.versionId))) throw new Error("文件履歷引用了不存在的版本");
+      if (doc.events.some(event => !event || typeof event.id !== "string" || event.versionId && !doc.versions.some(v => v.id === event.versionId))) throw new Error("文件紀錄引用了不存在的版本");
       doc.aliases ||= [];
     }
   }

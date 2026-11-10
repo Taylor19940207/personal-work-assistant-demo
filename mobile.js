@@ -8,10 +8,10 @@
   bar.innerHTML = `<button type="button" class="m-back" data-action="leave-project">← 全局</button><select class="m-case-select" aria-label="查看案件"></select><button type="button" data-action="open-command">搜尋</button><button type="button" data-doc-action="library">文件</button><button type="button" data-m-action="add">＋新增</button><button type="button" data-m-action="menu">更多</button>`;
   document.querySelector('.command-bar').append(bar);
   const views = document.createElement('nav'); views.className = 'm-views'; views.setAttribute('aria-label', '全局檢視');
-  views.innerHTML = ['mine:我的工作', 'tree:案件', 'canvas:拓樸', 'list:時間軸'].map(item => { const [id, name] = item.split(':'); return `<button type="button" data-m-view="${id}" aria-pressed="false">${name}</button>`; }).join('');
+  views.innerHTML = ['mine:我的工作', 'tree:案件', 'canvas:工作關係圖', 'list:時間軸'].map(item => { const [id, name] = item.split(':'); return `<button type="button" data-m-view="${id}" aria-pressed="false">${name}</button>`; }).join('');
   workspace.prepend(views);
   const controls = document.createElement('div'); controls.className = 'm-map-controls';
-  controls.innerHTML = `<button type="button" data-action="fit">歸位</button><details><summary>工具</summary><div><button type="button" data-action="zoom-in">＋ 放大</button><button type="button" data-action="zoom-out">− 縮小</button><button type="button" data-m-action="help">操作說明</button></div></details>`;
+  controls.innerHTML = `<button type="button" data-action="fit">顯示全圖</button><details><summary>工具</summary><div><button type="button" data-action="zoom-in">＋ 放大</button><button type="button" data-action="zoom-out">− 縮小</button><button type="button" data-m-action="help">操作說明</button></div></details>`;
   mapView.append(controls);
   const menu = document.createElement('dialog'); menu.className = 'm-menu'; menu.setAttribute('aria-labelledby', 'm-menu-title'); document.body.append(menu);
   let returnFocus = null;
@@ -40,7 +40,7 @@
       back.dataset.work = current.id;
       back.textContent = history.state?.fromWork?.timelineOrigin ? "← 回時間軸" : history.state?.fromWork?.listOrigin ? "← 回清單" : "← 上一層";
       const parent = workspaceData[uiState.projectId].tasks.find(task => task.id === current.parentId);
-      back.setAttribute("aria-label", history.state?.fromWork?.timelineOrigin ? "回時間軸" : history.state?.fromWork?.listOrigin ? "回清單項目" : parent ? "返回「" + parent.title + "」" : "返回案件工作");
+      back.setAttribute("aria-label", history.state?.fromWork?.timelineOrigin ? "回時間軸" : history.state?.fromWork?.listOrigin ? projectRoomHeader.querySelector(".project-back")?.title || "回清單項目" : parent ? "返回「" + parent.title + "」" : "返回案件工作");
     } else {
       delete back.dataset.deliveryAction; delete back.dataset.work; back.removeAttribute("aria-label");
       back.dataset.action = "leave-project"; back.textContent = "← 全局";
@@ -65,12 +65,12 @@
       const details = document.createElement('details'); details.className = 'm-case'; details.dataset.mobileCase = id;
       details.style.setProperty('--project-color', project.color);
       details.open = openCases.has(id);
-      details.innerHTML = `<summary><strong>${e(project.name)}</strong><span>${e(snapshot.state)}</span><small>${totals.direct.length - totals.incomplete.length}/${totals.direct.length} 主要成果 · ${e(data.deadlineDate || '未排定')}</small><small class="m-case-signals">${totals.issues.length} 個問題 · ${totals.active.length} 項推進中</small></summary><div class="m-case-works"></div>`;
+      details.innerHTML = `<summary><strong>${e(project.name)}</strong><span>${e(snapshot.state)}</span><small>${totals.direct.length - totals.incomplete.length}/${totals.direct.length} 主要工作 · ${e(data.deadlineDate || '未排定')}</small><small class="m-case-signals">${totals.issues.length} 個問題 · ${totals.active.length} 項推進中</small></summary><div class="m-case-works"></div>`;
       const body = details.querySelector('.m-case-works');
       const link = section.querySelector('.d-project-link');
       if (link) { link.innerHTML = `進入案件 ↗`; body.append(link); }
       for (const child of [...section.querySelectorAll(':scope > .d-tree-item')]) body.append(child);
-      if (!body.querySelector('.d-tree-item')) body.insertAdjacentHTML('beforeend', '<p class="d-help">尚無主要成果，可進入案件新增。</p>');
+      if (!body.querySelector('.d-tree-item')) body.insertAdjacentHTML('beforeend', '<p class="d-help">尚無主要工作，可進入案件新增。</p>');
       if (data.goal.title && data.goal.title !== project.name) body.insertAdjacentHTML('afterbegin', `<p class="d-help">交付目標：${e(data.goal.title)}</p>`);
       details.addEventListener('toggle', () => { if (details.open) openCases.add(id); else openCases.delete(id); });
       section.replaceWith(details);
@@ -112,10 +112,10 @@
     if (action === 'menu') showMenu('工具與管理',
       item('優先處理', 'data-action="open-attention"', '期限、待回覆與需要處理的工作') +
       item('問題總覽', 'data-m-action="issues"') + item('案件與備份', 'data-workspace-action="manager"', '管理案件、封存、匯出與還原') +
-      item('操作說明', 'data-m-action="help"'));
+      item('操作說明', 'data-m-action="help"') + '<a class="d-action" href="./glossary.html" target="_blank" rel="noopener">工作用語辭典 ↗</a>');
     if (action === 'help') {
       controls.querySelector('details').open = false;
-      showMenu('操作說明', '<p>案件：展開案件，查看各項工作的狀態；點工作進入操作。</p><p>拓樸：單指拖曳、雙指縮放。點成果進入工作，＋展開子工作；連線表示所屬關係。</p><p>歸位：重新定位全局。進出工作時會保留原來的查看位置。</p><p>紀錄：依案件查看歷史。工作狀態可用狀態選單調整，文件可直接在工作內加入。</p>');
+      showMenu('操作說明', '<p>案件：展開案件，查看各項工作的狀態；點工作進入操作。</p><p>工作關係圖可單指拖曳、雙指縮放。點名稱開啟工作，點＋展開子工作。</p><p>點「顯示全圖」可讓整張工作關係圖回到畫面內。</p><p>時間軸依日期顯示各案件的進度。</p>');
     }
     if (action === 'add') {
       if (uiState.surface !== 'project') return workspaceManager.newProjectDialog();
@@ -125,9 +125,9 @@
     if (action === 'issue') openCaptureDialog('issue');
     if (action === 'work') openCaptureDialog('task');
     if (action === 'progress') openCaptureDialog('note');
-    if (action === 'issues') showMenu('各案件的未解問題', getPortfolioProjects().map(project => {
+    if (action === 'issues') showMenu('各案件的待解決問題', getPortfolioProjects().map(project => {
       const count = workspaceData[project.id].issues.filter(issue => issue.status === 'open').length;
-      return item(e(project.name), `data-open-project-tab="records" data-project-id="${e(project.id)}"`, `${count} 個未解問題`);
+      return item(e(project.name), `data-open-project-tab="records" data-project-id="${e(project.id)}"`, `${count} 個待解決問題`);
     }).join('') || '<p>尚未建立案件。</p>');
     // The original handlers run first; reflect focus/issue filters afterwards.
     if (event.target.closest('[data-mode], [data-action="reset"]')) sync();

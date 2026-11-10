@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>工作用語辭典｜個人工作台</title>
+  <style>
+    :root { color-scheme:dark; font:16px/1.65 system-ui,sans-serif; background:#0e171a; color:#e4ecea; }
+    * { box-sizing:border-box; } body { margin:0; padding:clamp(18px,4vw,64px); }
+    header { border-bottom:1px solid #354549; padding-bottom:18px; } h1,h2,p { margin:0; } h1 { font-size:clamp(24px,3vw,38px); }
+    header p,small { color:#b1c5c5; } nav { display:flex; flex-wrap:wrap; gap:6px 20px; margin-top:12px; }
+    a { color:#91e4d3; text-underline-offset:4px; padding:4px 0; }
+    main { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr)); gap:22px clamp(24px,4vw,64px); }
+    section { padding-top:20px; scroll-margin:12px; } h2 { font-size:20px; } dl { margin:8px 0; }
+    dl div { display:grid; grid-template-columns:minmax(6em,27%) minmax(0,1fr); gap:10px; padding:9px 0; border-bottom:1px solid #28383c; }
+    dt { font-weight:650; } dd { margin:0; } small { display:block; font-size:14px; } @media print { :root { background:white; color:black; } nav { display:none; } main { display:block; } dl div { break-inside:avoid; } small,header p { color:#444; } }
+  </style>
+</head>
+<body>
+<header><h1>工作用語辭典</h1><p>用「替客戶申請許可」說明工作台上的名稱，以及每個動作代表什麼。</p>
+<nav aria-label="辭典章節"><a href="#work">案件與工作</a><a href="#status">工作與清單狀態</a><a href="#people">分工與日期</a><a href="#files">文件與往來</a><a href="#views">畫面與紀錄</a><a href="#old">舊稱對照</a></nav></header>
+<main>
+<section id="work"><h2>案件與工作</h2><dl>
+<div><dt>案件</dt><dd>你要一路跟到交付的一件事。<small>例：替 A 公司申請許可。</small></dd></div>
+<div><dt>交付目標</dt><dd>案件最後要把什麼交給誰。<small>例：把核發的許可交給 A 公司。</small></dd></div>
+<div><dt>工作／子工作</dt><dd>可以單獨分工、訂期限或交回結果的事。放在另一項工作底下，就叫子工作。<small>例：「準備送件資料」是一項工作，其中「取得謄本」可以交給小林做。</small></dd></div>
+<div><dt>主要工作／必要工作</dt><dd>主要工作直接列在案件底下；必要工作是交付前一定得完成的工作。新增子工作時，也可勾選它是否為上一層交付所需。</dd></div>
+<div><dt>待辦</dt><dd>工作中做完就能勾掉的一個動作。<small>例：打電話確認簽署人。</small></dd></div>
+<div><dt>清單項目</dt><dd>需要逐項準備、核對的東西。<small>例：清單上的「監察報告」可直接使用另一項工作交回的報告。</small></dd></div>
+<div><dt>工作結果</dt><dd>工作交回的文件、連結或說明。<small>例：「取得監察報告」是工作，會計師交回的報告是結果。</small></dd></div>
+<div><dt>交付條件</dt><dd>某個步驟開始或完成前，一定要先滿足的要求。<small>例：正式送件前，監察報告必須已核對。</small></dd></div>
+</dl></section>
+<section id="status"><h2>工作與清單狀態</h2><dl>
+<div><dt>待處理</dt><dd>工作已排進來，還沒開始。可以先指定負責人。</dd></div>
+<div><dt>進行中</dt><dd>已經開工。準備文件、等別人交件或處理補件都可以在這個狀態。</dd></div>
+<div><dt>待確認</dt><dd>整項工作已交回，等接手的人檢查結果。</dd></div>
+<div><dt>已完成</dt><dd>這項工作需要的結果都已確認。案件實際交給客戶時，再記錄交付。</dd></div>
+<div><dt>待準備／待核對</dt><dd>清單項目還在準備，或已拿到資料、等人核對。<small>例：謄本收到後待核對；同一份清單的申請書還可能在準備。</small></dd></div>
+<div><dt>待補件／已備妥</dt><dd>這一項還需要補資料或修改，或已核對、可以提交。<small>「已備妥」是準備好了；實際提交後再記錄送出日期。</small></dd></div>
+</dl></section>
+<section id="people"><h2>分工與日期</h2><dl>
+<div><dt>指派／負責人</dt><dd>把工作交給某人處理，這個人就是這項工作的負責人。</dd></div>
+<div><dt>交回給誰</dt><dd>負責人完成後，把結果交給誰核對或接著處理。</dd></div>
+<div><dt>往來對象</dt><dd>這次要向誰要資料、回覆或確認。<small>小林負責取得報告；出報告的會計師是往來對象。</small></dd></div>
+<div><dt>工作期限／交件日</dt><dd>工作期限是要完成工作的日子；交件日是約好對方要交回資料的日子。</dd></div>
+<div><dt>跟進日</dt><dd>你約好再問進度的日子。另訂跟進日後，依跟進日提醒，仍依交件日判斷逾期。</dd></div>
+<div><dt>到期／逾期</dt><dd>今天應交叫「今天到期」；過了交件日還沒收到才叫「逾期」。</dd></div>
+<div><dt>預計／約定／實際</dt><dd>預計是目前估的日期；約定是已談好的日期；實際是事情發生的日期。</dd></div>
+</dl></section>
+<section id="files"><h2>文件與往來</h2><dl>
+<div><dt>文件／檔案</dt><dd>「監察報告」是一份文件；收到或上傳的 PDF 是檔案。同一份文件可以更新版本。</dd></div>
+<div><dt>文件庫／共用文件</dt><dd>文件庫放各案件可使用的文件。從文件庫加入同一份謄本，兩個案件都找得到。</dd></div>
+<div><dt>新增版本</dt><dd>把修改後的檔案接在同一份文件底下。<small>工作交回、核對或提交時記下的版本，日後仍開當時那一版。</small></dd></div>
+<div><dt>收件／核對</dt><dd>收件是已收到；核對是檢查內容是否符合要求。<small>謄本收到後發現缺頁，可以記下原因並請對方補件。</small></dd></div>
+<div><dt>交回／提交／交付</dt><dd>交回是把工作結果給下一位接手的人；提交是把準備好的資料送給對象；交付是把案件約好的最終結果交出去。</dd></div>
+<div><dt>提供文件／文件紀錄</dt><dd>提供文件時記下給誰、哪天給、給哪一版。收到、修改、退回和對方確認也各有紀錄。</dd></div>
+<div><dt>從工作取得</dt><dd>清單項目使用指定工作交回的結果。來源工作交回新版後，清單可重新核對。</dd></div>
+</dl></section>
+<section id="views"><h2>畫面與紀錄</h2><dl>
+<div><dt>我的工作</dt><dd>「輪到我」列出要動手做的事；「我在跟進」列出正在等誰、何時要追。兩個動作可以屬於同一項工作。</dd></div>
+<div><dt>工作關係圖</dt><dd>從各案件的交付目標往下看工作和子工作。線連到哪裡，表示工作屬於哪一層。</dd></div>
+<div><dt>案件總覽／工作板</dt><dd>案件總覽看整案目標與進度；工作板按工作狀態安排工作。</dd></div>
+<div><dt>時間軸</dt><dd>按日期看已發生、目前進行和預定的事。同一天可以有多項工作。</dd></div>
+<div><dt>問題／處理決定</dt><dd>問題寫遇到什麼困難；處理決定寫決定怎麼做、為什麼。決定記在對應的問題下。</dd></div>
+<div><dt>記錄／紀錄</dt><dd>按「記錄收件」是登記剛收到文件這件事；打開「文件紀錄」可以看之前登記的內容。</dd></div>
+<div><dt>備份／還原／封存</dt><dd>備份是存一份可還原的資料；還原是從備份取回；封存是將案件收起，日後仍能查看。</dd></div>
+</dl></section>
+<section id="old"><h2>舊畫面上的名稱</h2><dl>
+<div><dt>專案／案子</dt><dd>現在統稱「案件」。</dd></div>
+<div><dt>拓撲圖／拓樸</dt><dd>現在叫「工作關係圖」。</dd></div>
+<div><dt>交付全貌</dt><dd>現在叫「案件總覽」。</dd></div>
+<div><dt>主要成果／子成果</dt><dd>畫面上可指派、可設期限的項目，現在叫「工作」或「子工作」。交回的內容稱為「工作結果」。</dd></div>
+<div><dt>承接人</dt><dd>現在叫「負責人」；這次要聯絡的人填在「往來對象」。</dd></div>
+<div><dt>關聯工作</dt><dd>在清單上找「從工作取得」，選擇哪項工作會交回這份資料。</dd></div>
+<div><dt>需補正</dt><dd>清單上顯示「待補件」。可在該項寫下缺什麼、哪裡要改。</dd></div>
+<div><dt>文件履歷</dt><dd>現在叫「文件紀錄」。</dd></div>
+</dl></section>
+</main></body></html>

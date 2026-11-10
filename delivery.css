@@ -251,3 +251,17 @@
 @media (max-width:719px), (pointer:coarse) and (max-width:1100px) {
   .reading-work .project-heading-copy h1 { font-size: 22px; margin-bottom: 6px; }
 }
+
+.rl-origin { margin-top:5px; color:var(--paper-2); font-size:13px; overflow-wrap:anywhere; }
+.rl-row { border-bottom:1px solid var(--line); }
+.rl-row .rl-item { border:0; }
+.rl-row:focus-within { background:var(--control-quiet); box-shadow:inset 2px 0 var(--signal); }
+.rl-row-actions { display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; padding:0 4px 8px; }
+.rl-row-actions button,.rl-result button,.rl-row-actions a { max-width:100%; overflow-wrap:anywhere; text-align:left; }
+.rl-row-actions [data-workspace-action="open-file"],.rl-result [data-workspace-action="open-file"] { color:var(--signal); }
+.rl-result { margin:12px 0 18px; padding:14px 18px; border-left:2px solid var(--signal); background:var(--control-quiet); }
+.rl-result .d-section-title { align-items:center; margin:0; }
+.rl-result small { color:var(--paper-2); }
+.rl-result p { margin:6px 0; }
+
+.rl-restoring::details-content { transition: none; }
