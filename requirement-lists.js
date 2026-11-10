@@ -47,8 +47,15 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
       sourceId:item.sourceId || "",outputId:view.output?.id || "",approvalId:item.approvalId || "",artifacts:structuredClone(view.refs)};
   }
   function submitted(req,snapshot) {
-    const previous=req.rounds.flatMap(round=>round.items || []).findLast(entry=>entry.itemId===snapshot.itemId);
-    return previous && JSON.stringify(previous)===JSON.stringify(snapshot);
+    const round = req.rounds.findLast(r => r.items?.some(entry => entry.itemId === snapshot.itemId));
+    const previous = round?.items.find(entry => entry.itemId === snapshot.itemId);
+    if (!previous) return null;
+    const {response, ...sent} = previous;
+    const state = response?.state || round.state;
+    return state !== "revise" && JSON.stringify(sent) === JSON.stringify(snapshot) ? {round, state} : null;
+  }
+  function hasUnsent(data, req) {
+    return req.items.some(item => rowView(data,item).state === "ready" && !submitted(req,itemSnapshot(data,item)));
   }
   function stats(data,req) { return req.items.filter(item => rowView(data,item).state === "ready").length; }
   function nextItem(data, req) {
@@ -69,7 +76,7 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
   }
   function card(data,task,req) {
     const count = stats(data,req);
-    const sendable=req.items.filter(item=>rowView(data,item).state==="ready" && !submitted(req,itemSnapshot(data,item))).length;
+    const sendable = hasUnsent(data, req);
     const button = (label,name,item="") => action(label,"list-"+name,task.id,`data-item="${e(req.id)}" data-row="${e(item)}"`);
     const dueRows=[], readyRows=[];
     for (const item of req.items) {
@@ -82,11 +89,14 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
       const row = `<div class="rl-row"><button type="button" class="rl-item" data-delivery-action="list-item" data-work="${e(task.id)}" data-item="${e(req.id)}" data-row="${e(item.id)}"><strong>${e(item.title)}</strong><span data-state="${e(state)}">${statuses[state]}</span>${hint ? "<small>"+e(hint)+"</small>" : ""}</button>${documents || visit ? `<div class="rl-row-actions">${documents}${visit}</div>` : ""}</div>`;
       (state==="ready" ? readyRows : dueRows).push(row);
     }
+    const pendingReplies = req.rounds.flatMap((round, i) => round.state === "waiting" ?
+      [action("記錄第 " + (i + 1) + " 次提交的回覆", "round-reply", task.id,
+        'data-item="' + e(req.id) + '" data-round="' + e(round.id) + '"')] : []);
     const rows=dueRows.join("")+(readyRows.length ? `<details class="rl-ready" data-ready-list="${e(req.id)}" ${readyOpened.has(req.id) ? "open" : ""}><summary>查看已備妥項目 · ${readyRows.length}</summary>${readyRows.join("")}</details>` : "");
-    const history = req.rounds.map((round,i)=>`<details><summary>第 ${i+1} 次提交 · ${e(round.sentDate)} · ${e(round.person)}</summary>${round.items ? "" : e(round.note || "")+" "+(round.artifacts || []).map(ref=>refButton(data,ref)).join(" ")}${(round.items || []).map(s=>`<p><strong>${e(s.title)}</strong> ${e(s.note)} ${s.artifacts.map(ref=>refButton(data,ref)).join(" ")}</p>`).join("")}</details>`).join("");
+    const history = req.rounds.map((round,i)=>`<details><summary>第 ${i+1} 次提交 · ${e(round.sentDate)} · ${e(round.person)}</summary>${round.items ? "" : e(round.note || "")+" "+(round.artifacts || []).map(ref=>refButton(data,ref)).join(" ")}${(round.items || []).map(s=>`<p><strong>${e(s.title)}</strong> ${e(s.note)} ${s.response ? e([s.response.date, s.response.state === "revise" ? "已退回" : "已確認", s.response.reply].filter(Boolean).join(" · ")) : ""} ${s.artifacts.map(ref=>refButton(data,ref)).join(" ")}</p>`).join("")}</details>`).join("");
     return `<details class="rl-list" data-request-id="${e(req.id)}" data-list-disclosure ${opened.has(req.id) ? "open" : ""}><summary><strong>${e(req.title)}</strong><span>${count}/${req.items.length} 項已備妥</span></summary><p class="d-help">${e([req.person && "提交對象：" + req.person, req.due && "清單期限 " + req.due,req.state==="waiting"?"上次提交待確認":req.state==="accepted"?"已確認":""].filter(Boolean).join(" · "))}</p>${rows}
       ${req.unfiled?.length ? button("整理未分類的檔案 · "+req.unfiled.length,"unfiled") : ""}<div class="d-actions">${button("加入項目","append")}${button("加入多個檔案","batch")}${button("清單設定","settings")}
-      ${req.state==="waiting" ? button("記錄對方確認","confirm") : sendable ? button("記錄提交","submit") : ""}</div>${history}</details>`;
+      ${sendable ? button("記錄提交","submit") : ""}${pendingReplies.join("")}</div>${history}</details>`;
   }
   document.addEventListener("toggle",event=>{
     const el=event.target;
@@ -271,7 +281,9 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
   }
   function resultCard(data,task) {
     const output = workResult(task);
-    const recordOutput = action(output ? "再次交回工作結果" : "交回工作結果","list-output",task.id);
+    const assignment = task.requests.find(r => r.assignment);
+    const label = assignment?.state === "checking" ? "核對這次交件" : output ? "再次交回工作結果" : "交回工作結果";
+    const recordOutput = action(label,"list-output",task.id);
     if (!output) return recordOutput;
     const date = output.receivedDate ? "收件 "+output.receivedDate : output.at ? "登錄 "+localISODate(new Date(output.at)) : "";
     const files = (output.refs || []).map(ref=>refButton(data,ref,task.title+" / 交回結果")).join(" ");
@@ -371,10 +383,42 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
       const rows=newRows(v.get("names")); if(!rows.length) throw Error("請至少填一項");
       req.items.push(...rows);editable(req);record(data,task,"加入清單項目",rows.map(i=>i.title).join("、"));
     });
-    if(name==="list-confirm" && req.state==="waiting"){
-      req.state="accepted"; req.rounds.at(-1).state="accepted"; req.rounds.at(-1).repliedAt=new Date().toISOString();
-      record(data,task,"對方已確認",req.title); if(saveWorkspaceData()) refreshProjectDataSurface();
-    }
+
   }
-  return {create,fields,card,handle,stats,nextItem,newRows,focusRow,resultCard};
+  function replyToRound(data, task, req, round, versionId) {
+    const pending = (round.items || []).filter(row => !row.response);
+    const chooseItems = pending.length > 1;
+    const fields = chooseItems ? '<fieldset><legend>本次回覆涉及的項目</legend>' + pending.map(row =>
+      `<label class="d-check"><input type="checkbox" name="row" value="${e(row.itemId)}" ${!versionId || row.artifacts.some(ref => ref.versionId === versionId) ? "checked" : ""}><span>${e(row.title)}</span></label>`).join("") + '</fieldset>' : "";
+    form("記錄提交回覆", e([req.title, round.person, round.sentDate, pending.length === 1 && pending[0].title].filter(Boolean).join(" · ")),
+      fields + select("回覆結果", "state", [["accepted","對方已確認"],["revise","退回修改"]], "accepted") +
+      field("實際回覆日", "date", localISODate(), "date", true) + field("回覆說明", "reply", "", "textarea"), "儲存回覆", values => {
+        const state = values.get("state"), date = values.get("date"), reply = values.get("reply").trim();
+        const rows = chooseItems ? pending.filter(row => values.getAll("row").includes(row.itemId)) : pending;
+        if (chooseItems && !rows.length) throw Error("請選擇這次收到回覆的項目");
+        if (round.state !== "waiting" || rows.some(row => row.response)) throw Error("這次提交已有回覆，請重新開啟");
+        if (!date || date > localISODate() || date < round.sentDate) throw Error("請確認回覆日介於提交日與今天之間");
+        if (state === "revise" && !reply) throw Error("請記下需要修改的內容");
+        const at = new Date().toISOString();
+        for (const row of rows) {
+          const item = req.items.find(item => item.id === row.itemId);
+          const current = item && submitted(req, itemSnapshot(data, item))?.round === round;
+          row.response = {state, reply, date, at};
+          if (state !== "revise" || !current) continue;
+          const view = rowView(data, item);
+          Object.assign(item, {state:"revise", note:reply, seenOutput:view.output?.id || ""});
+          item.history ||= [];
+          item.history.push({id:uid("row-event"), date, at, state:"revise", note:reply, refs:structuredClone(view.refs)});
+        }
+        if (!round.items?.length || round.items.every(row => row.response)) {
+          const returned = round.items?.some(row => row.response.state === "revise");
+          Object.assign(round, {state:returned ? "revise" : state, reply, replyDate:date, repliedAt:at});
+        }
+        const batch = rows.map(row => row.title).join("、") || req.title;
+        const submittedRows = req.items.map(item => rowView(data,item).state === "ready" && submitted(req,itemSnapshot(data,item)));
+        req.state = submittedRows.every(r => r?.state === "accepted") ? "accepted" : submittedRows.every(Boolean) ? "waiting" : "preparing";
+        record(data, task, state === "revise" ? "提交資料退回修改" : "對方已確認", [req.title, batch, reply].filter(Boolean).join(" · "));
+      });
+  }
+  return {create,fields,card,handle,replyToRound,stats,hasUnsent,nextItem,newRows,focusRow,resultCard};
 }

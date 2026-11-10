@@ -64,7 +64,14 @@ const workTimeline = (() => {
           put(round.sentDate, "actual", (received ? "已索取 · " : "已送出 · ") + r.title, [who,round.note].filter(Boolean).join(" · "), {...target, refs:received ? [] : round.artifacts});
           put(round.receivedDate, "actual", "已收到 · " + r.title, who, {...target, refs:round.artifacts});
           const reply = {revise:"退回修改", accepted:"已確認", cancelled:"已結束"}[round.state];
-          if (reply) put(round.replyDate || round.repliedAt, round.state === "revise" ? "issue" : "actual", reply + " · " + r.title, [who,round.reply].filter(Boolean).join(" · "), {...target, refs:round.artifacts});
+          if (round.items?.some(row => row.response)) {
+            for (const row of round.items.filter(row => row.response)) {
+              const response = row.response;
+              put(response.date, response.state === "revise" ? "issue" : "actual",
+                (response.state === "revise" ? "退回修改" : "已確認") + " · " + row.title,
+                [who, response.reply].filter(Boolean).join(" · "), {...target, refs:row.artifacts});
+            }
+          } else if (reply) put(round.replyDate || round.repliedAt, round.state === "revise" ? "issue" : "actual", reply + " · " + r.title, [who,round.reply].filter(Boolean).join(" · "), {...target, refs:round.artifacts});
         }
       }
       for (const r of task.reviewRounds) {

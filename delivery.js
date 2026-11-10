@@ -182,7 +182,7 @@
     const done = s.direct.filter(task => task.status === "done").length;
     const progress = s.direct.length ? Math.round(done / s.direct.length * 100) : 0;
     let state = base.state;
-    if (data.lifecycle === "active" && !data.tasks.length && !s.issues.length && base.deadline.state !== "overdue") state = "待安排工作";
+    if (data.lifecycle === "active" && !data.tasks.length && !s.issues.length && base.deadline.state !== "overdue") state = data.appointments.some(item => item.status === "scheduled") ? "已安排行程" : data.appointments.some(item => item.status === "held") ? "已有行程紀錄" : "待安排工作";
     if (data.lifecycle === "active" && progress === 100) state = "已備妥，待對外交付";
     else if (data.lifecycle === "active" && state === "已完成") state = "待確認交付範圍";
     if (data.lifecycle === "completed" && (s.incomplete.length || s.changed)) state = "已交付，有後續變動";
@@ -418,7 +418,7 @@
         }
       }
     }
-    return items.filter(item => workspaceData[item.projectId]?.lifecycle !== "archived").sort((a, b) => a.priority - b.priority || a.dueAt - b.dueAt);
+    return items.filter(item => !["completed", "archived"].includes(workspaceData[item.projectId]?.lifecycle)).sort((a, b) => a.priority - b.priority || a.dueAt - b.dueAt);
   };
 
   function breadcrumb(data, task) {
@@ -429,7 +429,7 @@
   }
   function appointmentRow(item, work, projectId, context) {
     const when = [item.date, item.time].filter(Boolean).join(" ");
-    const detail = [when, item.place, context, item.status === "held" && "已舉行", item.status === "cancelled" && "已取消"].filter(Boolean).join(" · ");
+    const detail = [when, item.place, context, item.status === "scheduled" && item.date < localISODate() && "尚未記錄結果", item.status === "held" && "已舉行", item.status === "cancelled" && "已取消"].filter(Boolean).join(" · ");
     return `<button type="button" class="d-context-link" data-delivery-action="appointment" data-project="${e(projectId)}" data-work="${e(work?.id || "")}" data-item="${e(item.id)}"><strong>${e(item.title)}</strong><span>${e(detail)}</span></button>`;
   }
 
@@ -440,7 +440,7 @@
       if (task && item.taskId !== task.id) continue;
       const work = works.get(item.taskId);
       const html = appointmentRow(item, work, project.id, task ? "" : work?.title || "整個案件");
-      (item.status === "scheduled" ? upcoming : past).push({date:item.date, time:item.time || "", html});
+      (item.status === "scheduled" && item.date >= localISODate() ? upcoming : past).push({date:item.date, time:item.time || "", html});
     }
     if (!task) {
       for (const work of data.tasks) for (const item of work.milestones) {
@@ -453,14 +453,14 @@
     const byTime = (a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time);
     return `<section class="d-section d-agenda"><div class="d-section-title"><h3>${task ? "工作行程" : "案件行程"}</h3>${action(task && (normalizeDateValue(task.due) || workAppointment(data, task)) ? "另排行程" : "新增行程", "appointment", task?.id)}</div>
       ${upcoming.sort(byTime).map(row=>row.html).join("")}
-      ${past.length ? `<details><summary>已結束的行程 · ${past.length}</summary>${past.sort((a,b)=>byTime(b,a)).map(row=>row.html).join("")}</details>` : ""}</section>`;
+      ${past.length ? `<details><summary>過往與取消的行程 · ${past.length}</summary>${past.sort((a,b)=>byTime(b,a)).map(row=>row.html).join("")}</details>` : ""}</section>`;
   }
 
   function overview(project, data) {
     const s = summary(data);
     const today = localISODate();
     const coordination = data.tasks.filter(task => task.status !== "done").flatMap(task =>
-      outstandingRequests(data, task).map(request => ({task, request, brief:requestBrief(data, request, today)})));
+      outstandingRequests(data, task).flatMap(request => requestBriefs(data, request, today).map(brief => ({task, request, brief}))));
     const risks = data.tasks.map(task => dependencyRows(data,task,true)).join("");
     const needsAttention = risks || coordination.length || s.issues.length || s.overdue.length || s.changed;
     const canDeliver = data.tasks.length > 0 && !s.incomplete.length && !s.changed;
@@ -472,12 +472,12 @@
         if (version?.blobId) return `<button type="button" class="d-action" data-workspace-action="open-file" data-file="${e(ref.documentId)}" data-version="${e(ref.versionId)}">${e(ref.name)} ↗</button>`;
         return safeURL(version?.url) ? `<a href="${e(version.url)}" target="_blank" rel="noopener noreferrer">${e(ref.name)} ↗</a>` : e(ref.name);
       }).join("")}`).join("")}</details>` : ""}
-      <div class="d-overview-grid"><section><div class="d-section-title"><h3>案件工作</h3>${action(data.tasks.length ? "＋ 新增工作" : "新增第一項工作", "create")}</div>
+      <div class="d-overview-grid"><section><div class="d-section-title"><h3>案件工作</h3><div class="d-actions">${!data.tasks.length && data.lifecycle === "active" && data.appointments.some(item => item.status === "held") ? action("記錄對外交付", "accept-goal") : ""}${action(data.tasks.length ? "＋ 新增工作" : "新增第一項工作", "create")}</div></div>
       ${children(data).map(task => workRow(project, task)).join("") || `<div class="d-empty">尚未安排工作。${data.goal.criteria ? "<p>驗收標準：" + e(data.goal.criteria) + "</p>" : ""}</div>`}</section>
       <aside class="d-side">
         ${needsAttention ? `<section><h3>待辦與跟進</h3>${risks}
           ${s.overdue.map(task => `<button type="button" class="d-context-link" data-delivery-action="open" data-work="${e(task.id)}"><strong>${e(task.title)}</strong><span>工作逾期 · 原訂 ${dateLabel(task.due)} 完成</span></button>`).join("")}
-          ${coordination.map(({task, request, brief}) => `<button type="button" class="d-context-link" data-delivery-action="open-request" data-work="${e(task.id)}" data-item="${e(request.id)}"${brief.rowId ? ' data-row="' + e(brief.rowId) + '"' : ""}><strong>${e(brief.title)}</strong><span>${e([task.title, brief.detail].filter(Boolean).join(" · "))}</span></button>`).join("")}
+          ${coordination.map(({task, request, brief}) => `<button type="button" class="d-context-link" data-delivery-action="${brief.route === "round-reply" ? "round-reply" : "open-request"}" ${brief.roundId ? 'data-round="' + e(brief.roundId) + '"' : ""} data-work="${e(task.id)}" data-item="${e(request.id)}"${brief.rowId ? ' data-row="' + e(brief.rowId) + '"' : ""}><strong>${e(brief.title)}</strong><span>${e([task.title, brief.detail].filter(Boolean).join(" · "))}</span></button>`).join("")}
           ${s.changed ? "<p>已完成的工作中有子工作重新開啟，請確認交付進度。</p>" : ""}${s.issues.length ? action("查看待解決問題（" + s.issues.length + "）", "issues") : ""}</section>` : ""}
         ${agenda(project, data)}
         ${data.activity.length ? `<section><h3>近期紀錄</h3>${data.activity.slice(0,4).map(item => `<p><small>${e(item.date)}</small><br>${e(item.title)}</p>`).join("")}</section>` : ""}
@@ -716,22 +716,31 @@
   }
   function appointmentForm(project, data, task, item) {
     const context = [project.name, task?.title].filter(Boolean).map(e).join(" / ");
-    const statusField = select("行程狀態", "status", [["scheduled","已安排"],["held","已舉行"],["cancelled","已取消"]], item?.status || "scheduled");
+    const canFinish = () => item && task && task.status !== "done" && !stillNeeded(data, task) &&
+      !task.reviewRounds.some(round => round.state === "waiting") && !summary(data, task).issues.length &&
+      !(task.status === "queue" && blockers(data, task, "start").length);
+    const choices = [["scheduled","已安排"],["held","已舉行"]];
+    if (canFinish()) choices.push(["held-done","已舉行，同時完成「" + task.title + "」"]);
+    choices.push(["cancelled","已取消"]);
+    const statusField = item ? select("行程結果", "status", choices, item.status) : "";
     form(item ? "編輯行程" : "新增行程", context,
       field("行程名稱", "title", item?.title, "text", true) +
       field("日期", "date", item?.date || localISODate(), "date", true) +
       field("時間（選填）", "time", item?.time, "time") +
       field("地點或線上會議網址（選填）", "place", item?.place) +
-      (item ? statusField : "") +
-      `<details class="d-work-options"${item?.note ? " open" : ""}><summary>${item ? "備註" : "備註與行程狀態"}</summary><div>${field("備註（選填）", "note", item?.note, "textarea")}${item ? "" : statusField}</div></details>`, "儲存行程", values => {
+      statusField +
+      `<details class="d-work-options"${item?.note ? " open" : ""}><summary>備註</summary><div>${field("備註（選填）", "note", item?.note, "textarea")}</div></details>`, "儲存行程", values => {
         const title = requiredValue(values, "title", "請填寫行程名稱");
         const date = requiredValue(values, "date", "請填寫行程日期");
-        const status = values.get("status");
+        const finishWork = values.get("status") === "held-done";
+        const status = finishWork ? "held" : item ? values.get("status") : "scheduled";
+        if (finishWork && !canFinish()) throw Error("還有其他工作事項待處理，請先單獨記錄行程結果");
         if (status === "held" && date > localISODate()) throw Error("未來的行程無法標記為已舉行");
         const changes = {title, date, status, time:textValue(values,"time"), place:textValue(values,"place"), note:textValue(values,"note")};
         const previous = item && [item.date,item.time].filter(Boolean).join(" ");
         const when = [date, changes.time].filter(Boolean).join(" ");
         const label = item && status === item.status ? "更新" : {scheduled:item ? "重新安排" : "安排",held:"已舉行",cancelled:"取消"}[status];
+        if (finishWork) transition(data, task, "done", title + "已舉行");
         if (item) Object.assign(item, changes);
         else data.appointments.push({id:uid("appointment"), taskId:task?.id || "", ...changes});
         record(data, task, label + "行程：" + title, [previous && previous !== when ? previous + " → " + when : when, changes.place, changes.note].filter(Boolean).join(" · "));
@@ -756,7 +765,7 @@
   function requiredValue(values, key, message) { const value = textValue(values, key); if (!value) throw new Error(message); return value; }
   function executionField(task) {
     if (task.status === "doing") return "";
-    return `<label class="d-check"><input type="checkbox" name="startWork" checked><span>${task.status === "queue" ? "同時開始這項工作" : task.status === "done" ? "重新開啟這項工作，繼續處理" : "將工作移回進行中"}</span></label>`;
+    return `<label class="d-check"><input type="checkbox" name="startWork" ${task.status === "queue" ? "checked" : ""}><span>${task.status === "queue" ? "同時開始這項工作" : task.status === "done" ? "重新開啟這項工作，繼續處理" : "將工作移回進行中"}</span></label>`;
   }
   function beginExecution(data, task, values) {
     if (!values.has("startWork") || task.status === "doing") return;
@@ -805,8 +814,8 @@
       const context = { projectId, kind: "task", id: task.id, ...receiptContext };
       return workspaceManager.storeFiles(selected, context, finish).then(() => alreadySaved);
     }
-    if (!selected.length) return finish([]);
-    return workspaceManager.storeFiles(selected, { projectId, kind: "task", id: task.id }).then(finish);
+    if (!selected.length) { documentModel.mutate(() => finish([])); return alreadySaved; }
+    return workspaceManager.storeFiles(selected, { projectId, kind: "task", id: task.id }, finish).then(() => alreadySaved);
   }
   const closedRequest = request => ["accepted", "cancelled"].includes(request.state);
   const assignmentOf = task => task?.requests?.find(request => request.assignment);
@@ -837,7 +846,11 @@
   }
 
   function requestOutstanding(data, request) {
-    if (request.items && !request.person) return lists.stats(data,request) < request.items.length;
+    if (request.state === "cancelled") return false;
+    if (request.items) {
+      if (request.rounds.some(round => round.state === "waiting") || lists.stats(data,request) < request.items.length) return true;
+      if (!request.person) return false;
+    }
     return !closedRequest(request);
   }
 
@@ -847,7 +860,7 @@
       blockers(data, task, "deliver").length > 0 || blockers(data, task, "submit").length > 0;
   }
 
-  function receiveAssignment(data, task, request) {
+  function receiveAssignment(data, task, request, acceptImmediately = false) {
     if (!["waiting", "revise"].includes(request.state)) return;
     const prior = request.rounds.at(-1)?.artifacts || [];
     const previousFile = prior.length === 1 && data.files.find(file => file.id === prior[0].fileId);
@@ -855,7 +868,7 @@
     const complete = !stillNeeded(data, task, request);
     form("記錄交回", e(request.person) + " → " + e(request.returnTo) + " · " + e(task.title),
       field("實際收件日", "receivedDate", localISODate(), "date", true) +
-      select("收件結果", "result", [["checking", "收到，待核對"], ["accepted", complete ? "已核對，完成工作" : "已核對合格，繼續其他工作"]], "checking") +
+      select("收件結果", "result", [["checking", "收到，待核對"], ["accepted", complete ? "已核對，完成工作" : "已核對合格，繼續其他工作"]], acceptImmediately ? "accepted" : "checking") +
       artifactFields(data, task) + (previousFile ? '<label class="d-check"><input type="checkbox" checked name="updatePrior"><span>上傳檔案作為「' + e(previousFile.name) + '」的新版本</span></label>' : ""),
       "儲存收件", values => {
         const receivedDate = requiredValue(values, "receivedDate", "請填實際收件日");
@@ -876,7 +889,7 @@
       });
   }
 
-  function checkAssignment(data, task, request, roundId) {
+  function checkAssignment(data, task, request, roundId, initialResult = "accepted") {
     const round = request.rounds.at(-1);
     if (!round || round.id !== roundId || !reviewable(request)) return showToast("這一輪已處理，請重新查看我的工作");
     const files = round.artifacts.map(ref => {
@@ -889,7 +902,7 @@
     }).join("");
     form("核對" + e(task.title), e(round.person) + " · 收到 " + dateLabel(round.receivedDate),
       '<div class="d-actions">' + (files || "這次沒有附文件") + '</div>' +
-      select("核對結果", "result", [["accepted", "核對合格"], ["revise", "請補件"]], "accepted") +
+      select("核對結果", "result", [["accepted", "核對合格"], ["revise", "請補件"]], initialResult) +
       '<div data-correction hidden>' + field("補件內容", "reason") + field("補件日（若已約定）", "due", "", "date") + field("另訂跟進日（選填）", "followOn", "", "date") + '</div>',
       "儲存核對結果", values => {
         const revise = textValue(values, "result") === "revise";
@@ -907,6 +920,7 @@
       dialog.querySelector("[data-correction]").hidden = !revise;
       dialog.querySelector('[name="reason"]').required = revise;
     });
+    result.dispatchEvent(new Event("change"));
   }
 
   function followForm(data, task, request) {
@@ -946,8 +960,7 @@
   }
 
   function outstandingRequests(data, task) {
-    return task.requests.filter(req => !closedRequest(req) ||
-      req.state === "accepted" && req.items && lists.stats(data, req) < req.items.length);
+    return task.requests.filter(req => requestOutstanding(data, req));
   }
 
   // Both the case summary and the personal briefing describe the same handoff.
@@ -1008,6 +1021,21 @@
       detail:[req.reply, req.due && "期限 " + req.due].filter(Boolean).join(" · ")};
   }
 
+  function requestBriefs(data, req, today) {
+    const brief = requestBrief(data, req, today);
+    if (!req.items) return [brief];
+    const waiting = req.rounds.filter(round => round.state === "waiting").map(round => {
+      const pending = (round.items || []).filter(row => !row.response);
+      const contact = round.person || req.person || "對方";
+      return {title:"等" + contact + "確認「" + req.title + "」", contact, waiting:true,
+        day:req.followOn || req.expectedDate, route:"round-reply", roundId:round.id, cta:"記錄回覆",
+        detail:[round.sentDate && "提交日 " + round.sentDate, pending.map(row => row.title).join("、")].filter(Boolean).join(" · ")};
+    });
+    if (!waiting.length) return [brief];
+    const hasWork = lists.nextItem(data, req) || lists.hasUnsent(data, req);
+    return hasWork ? [brief, ...waiting] : waiting;
+  }
+
   function myWorkHome() {
     if (!getPortfolioProjects().length) {
       const examples = location.protocol === "file:" && !location.pathname.includes("/dist/") ? "./dist/examples.html" : "./examples.html";
@@ -1027,7 +1055,7 @@
         todaysAgenda.push({time:item.time || "", html:appointmentRow(item, work, project.id, [project.name,work?.title].filter(Boolean).join(" · "))});
       }
       const totals = summary(data);
-      const first = !data.tasks.length;
+      const first = !data.tasks.length && !data.appointments.some(item => item.status !== "cancelled");
       if (data.lifecycle === "active" && (first || totals.direct.length && !totals.incomplete.length && !totals.changed)) {
         const label = first ? "請安排這個案件的第一項工作。" : "必要工作已完成，實際交付後請登記。";
         const cta = first ? "安排工作" : "記錄交付";
@@ -1044,8 +1072,7 @@
           group.push({day, html:`<div class="d-home-entry">${row}${followButton}</div>`});
         };
         const requests = outstandingRequests(data, task);
-        for (const req of requests) {
-          const brief = requestBrief(data, req, today);
+        for (const req of requests) for (const brief of requestBriefs(data, req, today)) {
           if (brief.contact) contacts.add(brief.contact);
           const target = 'data-item="' + e(req.id) + '"' +
             (brief.roundId ? ' data-round="' + e(brief.roundId) + '"' : "") +
@@ -1133,6 +1160,11 @@
     record(data, task, `${statusName(previous)} → ${statusName(nextStatus)}`, result);
   }
   function confirmationForm(data, task, mode, returnStatus = "doing") {
+    const assignment = assignmentOf(task);
+    if (assignment && !closedRequest(assignment)) {
+      if (reviewable(assignment)) return checkAssignment(data, task, assignment, assignment.rounds.at(-1).id, mode === "return" ? "revise" : "accepted");
+      if (mode === "review" || mode === "complete") return receiveAssignment(data, task, assignment, mode === "complete");
+    }
     if (mode === "review") {
       const previous = task.reviewRounds.at(-1);
       form("送交確認", "交回整項工作時使用。個別文件請在「清單與往來」記錄提交。",
@@ -1148,10 +1180,17 @@
       const unfinishedRequests = s.works.flatMap(item => item.requests).filter(item => requestOutstanding(data,item)).length;
       const unfinishedSteps = task.checklist.filter(item => !item.done).length;
       const reminder = s.issues.length || unfinishedRequests || unfinishedSteps ? `仍有 ${s.issues.length} 個問題、${unfinishedRequests} 項未結協作、${unfinishedSteps} 個未完成步驟。請先收尾；若不影響本次交付，請在驗收結果說明原因。` : "";
+      const visit = workAppointment(data, task);
+      const offerVisit = mode === "complete" && visit?.status === "scheduled" && visit.date <= localISODate();
       form(mode === "return" ? returnStatus === "queue" ? "撤回確認，移至待處理" : "記錄修改要求" : "確認工作完成", mode === "return" ? `保留本輪回覆，工作回到${statusName(returnStatus)}。之後可再送出新一輪確認。` : `依完成標準驗收：${e(task.criteria || "依實際交回內容確認")}。${reminder}`,
+        (offerVisit ? '<label class="d-check"><input type="checkbox" name="held"><span>同時記錄「' + e(visit.title) + '」已舉行（' + e(visit.date) + '）</span></label>' : "") +
         field(mode === "return" ? "修改要求或撤回原因" : reminder ? "結案原因" : "驗收備註（選填）", "result", "", "textarea", mode === "return" || Boolean(reminder)), mode === "return" ? `回到${statusName(returnStatus)}` : "確認完成", values => {
           const result = textValue(values, "result") || (mode === "complete" && !reminder ? "已核對合格" : requiredValue(values, "result", "請留下原因"));
           transition(data, task, mode === "return" ? returnStatus : "done", result);
+          if (offerVisit && values.has("held")) {
+            visit.status = "held";
+            record(data, task, "已舉行行程：" + visit.title, visit.date);
+          }
           const round = task.reviewRounds.findLast(item => item.state === "waiting");
           if (round) Object.assign(round, { state: mode === "return" ? "revise" : "accepted", reply: result, repliedAt: now() });
         });
@@ -1177,6 +1216,7 @@
       if (mode === "progress") { validateExecution(data, task, values); beginExecution(data, task, values); task.detail = detail; }
       record(data, task, mode === "progress" ? "更新現況" : "工作紀錄", detail);
     });
+    if (mode === "progress") requireFormChange();
   }
   const oldCapture = openCaptureDialog;
   openCaptureDialog = function(kind, preferredIssueId, preferredTaskId) {
@@ -1400,6 +1440,11 @@
       if (name === "home-first") return workForm(data,null);
       return projectRoomContent.querySelector('[data-delivery-action="accept-goal"]')?.click();
     }
+    if (name === "list-output" && task) {
+      const assignment = assignmentOf(task);
+      if (assignment && ["waiting", "revise"].includes(assignment.state)) return receiveAssignment(data, task, assignment);
+      if (reviewable(assignment)) return checkAssignment(data, task, assignment, assignment.rounds.at(-1).id);
+    }
     if (name.startsWith("list-") && task) return lists.handle(name,data,task,task.requests.find(r=>r.id===itemId),button.dataset.row);
     if (name === "home-step" && task) {
       const step = task.checklist.find(step => step.id === itemId);
@@ -1412,6 +1457,14 @@
         commit("已復原步驟");
       }});
       return;
+    }
+    if (name === "round-reply" && task) {
+      const request = task.requests.find(r => r.id === itemId);
+      const round = request?.rounds.find(r => r.id === button.dataset.round);
+      if (!round || round.state !== "waiting") return showToast("這次提交已經處理");
+      if (request.items) return lists.replyToRound(data, task, request, round, button.dataset.version);
+      if (request.direction === "outbound" && request.state === "waiting" && request.rounds.at(-1) === round) return replyForm(data, task, request);
+      return showToast("請查看這筆往來的最新進度");
     }
     if (name === "home-complete" && task) return confirmationForm(data, task, "complete");
     if (name === "assign" && task) return assignmentForm(data, task);

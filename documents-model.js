@@ -128,7 +128,13 @@
             return event(doc, type, values);
           };
           if (inbound ? round.receivedDate : round.sentDate) derived(inbound ? "received" : "provided", { ...base, id: `${round.id}-${ref.versionId}-transfer`, date: inbound ? round.receivedDate : round.sentDate, note: round.note || request.title, verification: "manual" });
-          if (round.repliedAt && ["revise", "accepted"].includes(round.state)) derived(round.state === "revise" ? inbound ? "incomplete" : "returned" : inbound ? "receipt_confirmed" : "confirmed", { ...base, id: `${round.id}-${ref.versionId}-${round.state}`, relatedEventId: doc.events.find(item => item.roundId === round.id && item.versionId === ref.versionId && item.type === (inbound ? "received" : "provided"))?.id || "", recordedAt: round.repliedAt, date: round.replyDate || localISODate(new Date(round.repliedAt)), note: round.reply || "", verification: "manual" });
+          let response = round.repliedAt && { state:round.state, at:round.repliedAt, date:round.replyDate, note:round.reply };
+          if (round.items?.some(row => row.response)) {
+            const rows = round.items.filter(row => row.artifacts.some(artifact => artifact.versionId === ref.versionId));
+            response = rows.find(row => row.response?.state === "revise")?.response ||
+              (rows.length && rows.every(row => row.response?.state === "accepted") && rows.map(row => row.response).sort((a,b) => b.at.localeCompare(a.at))[0]);
+          }
+          if (response && ["revise", "accepted"].includes(response.state)) derived(response.state === "revise" ? inbound ? "incomplete" : "returned" : inbound ? "receipt_confirmed" : "confirmed", { ...base, id: `${round.id}-${ref.versionId}-${response.state}`, relatedEventId: doc.events.find(item => item.roundId === round.id && item.versionId === ref.versionId && item.type === (inbound ? "received" : "provided"))?.id || "", recordedAt: response.at, date: response.date || localISODate(new Date(response.at)), note: response.note || response.reply || "", verification: "manual" });
         }
       }
     }
