@@ -218,39 +218,64 @@
     const columnWidth = inset + step + nodeWidth + mergeGap + tail + dateWidth + padding;
     const columns = projects.length > 1 && !expanded.size && workspace.clientWidth >= columnWidth * 1.25 ? 2 : 1;
     let bandStart = 65, bandBottom = 65;
-    function connect(x1, y1, x2, y2, key) {
-      const bend = Math.min(48, (x2 - x1) / 2);
+    function connect(x1, y1, x2, y2, key, bend = Math.min(48, (x2 - x1) / 2)) {
       paths.push(`<path data-motion-edge="${e(key)}" d="M${x1} ${y1} C${x1 + bend} ${y1},${x2 - bend} ${y2},${x2} ${y2}"/>`);
     }
-    function layoutTask(project, task, depth, ends) {
+    // Each visible subtree exposes one exit, on the same axis as its heading.
+    // Route from the middle outward so a returning curve clears the subtrees inside it.
+    function joinBranches(branches, y, prefix, gap) {
+      const right = branches.reduce((max, branch) => Math.max(max, branch.exitX), 0);
+      const spread = branches.at(-1).y - branches[0].y;
+      const extraRoom = Math.min(gap, Math.max(0, spread - 3 * row) * .12);
+      const joinX = right + gap + extraRoom;
+      const center = branches.find(branch => branch.top < y && y < branch.bottom);
+      function route(side) {
+        let clearance = center?.exitX || 0;
+        for (const branch of side) {
+          clearance = Math.max(clearance, branch.exitX);
+          if (branch.exitX < clearance) {
+            connect(branch.exitX, branch.y, clearance, branch.y, prefix + "lead/" + branch.key);
+          }
+          connect(clearance, branch.y, joinX, y, prefix + branch.key, (joinX - clearance) / 2);
+        }
+      }
+      route(branches.filter(branch => branch.y <= y).reverse());
+      route(branches.filter(branch => branch.y > y));
+      return joinX;
+    }
+    function layoutTask(project, task, x, width, dated) {
       const data = workspaceData[project.id];
       const kids = children(data, task.id);
-      const x = projectX + inset + depth * step;
-      let y;
+      const top = cursor;
+      let y, exitX = x + width;
       const limit = visibleCounts.get(task.id) || 4;
       if (expanded.has(task.id) && kids.length) {
-        const laid = kids.slice(0, limit).map(child => layoutTask(project, child, depth + 1, ends));
-        if (kids.length > limit) laid.push(moreNode(task.id, kids.length - limit, depth + 1, project.id, ends));
+        const childX = exitX + (narrow ? 28 : 62);
+        const childWidth = nodeWidth - (narrow ? 12 : 26);
+        const laid = kids.slice(0, limit).map(child => layoutTask(project, child, childX, childWidth, dated));
+        if (kids.length > limit) laid.push(moreNode(task.id, kids.length - limit, childX, childWidth, project.id));
         y = (laid[0].y + laid.at(-1).y) / 2;
-        laid.forEach(child => connect(x + nodeWidth, y, child.x, child.y, `${project.id}/${task.id}/${child.key}`));
+        laid.forEach(child => connect(exitX, y, child.x, child.y, `${project.id}/${task.id}/${child.key}`));
+        exitX = dated && laid.length > 1
+          ? joinBranches(laid, y, `${project.id}/join/${task.id}/`, narrow ? 36 : 60)
+          : laid.reduce((max, child) => Math.max(max, child.exitX), exitX);
       } else {
-        y = cursor + row / 2; cursor += row;
-        ends.push({x:x + nodeWidth, y, key:task.id});
+        y = cursor + row / 2;
+        cursor += row;
       }
       const s = summary(data, task);
       const alert = s.issues.length ? s.issues.length + " 個待解決問題" : s.revise.length ? s.revise.length + " 項待修改或補件" : s.waiting.length ? s.waiting.length + " 項待跟進" : "";
       const info = [workMeta(task), alert].filter(Boolean).join(" · ");
-      nodes.push(`<article data-motion-key="work/${e(task.id)}" class="d-map-node ${task.status === "doing" ? "is-active" : ""}" style="left:${x}px;top:${y}px;--project-color:${project.color}" data-map-project="${e(project.id)}" data-has-issues="${Boolean(s.issues.length)}">
+      nodes.push(`<article data-motion-key="work/${e(task.id)}" class="d-map-node ${task.status === "doing" ? "is-active" : ""}" style="--work-node-width:${width}px;left:${x}px;top:${y}px;--project-color:${project.color}" data-map-project="${e(project.id)}" data-has-issues="${Boolean(s.issues.length)}">
         <button type="button" class="d-map-open" data-delivery-action="open" data-project="${e(project.id)}" data-work="${e(task.id)}">${badge(task)}<strong>${e(task.title)}</strong>${info ? `<small>${e(info)}</small>` : ""}</button>
         ${kids.length ? action(`${expanded.has(task.id) ? "−" : "+"} ${kids.length}`, "expand", task.id, `aria-expanded="${expanded.has(task.id)}" aria-label="展開或收合 ${e(task.title)} 的子工作"`) : ""}
       </article>`);
-      return { x, y, key: task.id };
+      return {x, y, exitX, top, bottom:cursor, key:task.id};
     }
-    function moreNode(id, count, depth, projectId, ends) {
-      const x = projectX + inset + depth * step, y = cursor + row / 2; cursor += row;
-      nodes.push(`<div data-motion-key="more/${e(id)}" class="d-map-more" style="left:${x}px;top:${y - 22}px">${action(`再顯示 ${Math.min(4, count)} 項 · 尚有 ${count} 項`, "more", id, `data-project="${e(projectId)}"`)}</div>`);
-      ends.push({x:x + nodeWidth, y, key:`more/${id}`});
-      return { x, y, key: `more/${id}` };
+    function moreNode(id, count, x, width, projectId) {
+      const top = cursor, y = cursor + row / 2; cursor += row;
+      nodes.push(`<div data-motion-key="more/${e(id)}" class="d-map-more" style="--work-node-width:${width}px;left:${x}px;top:${y - 22}px">${action(`再顯示 ${Math.min(4, count)} 項 · 尚有 ${count} 項`, "more", id, `data-project="${e(projectId)}"`)}</div>`);
+      return {x, y, exitX:x + width, top, bottom:cursor, key:`more/${id}`};
     }
     for (const [projectIndex, project] of projects.entries()) {
       projectX = (projectIndex % columns) * columnWidth;
@@ -259,11 +284,11 @@
       const goalIndex = nodes.length;
       const roots = children(data);
       const limit = visibleCounts.get(project.id) || 4;
-      const ends = [];
-      const laid = roots.slice(0, limit).map(task => layoutTask(project, task, 1, ends));
-      if (roots.length > limit) laid.push(moreNode(project.id, roots.length - limit, 1, project.id, ends));
       const delivered = data.lifecycle === "completed";
       const deliveryDate = delivered ? data.goal.acceptedAt?.slice(0,10) : data.deadlineDate;
+      const workX = projectX + inset + step;
+      const laid = roots.slice(0, limit).map(task => layoutTask(project, task, workX, nodeWidth, Boolean(deliveryDate)));
+      if (roots.length > limit) laid.push(moreNode(project.id, roots.length - limit, workX, nodeWidth, project.id));
       const label = delivered ? "已對外交付" : "預計交付";
       const y = laid.length ? (laid[0].y + laid.at(-1).y) / 2 : cursor + row / 2;
       if (!laid.length) cursor += row;
@@ -271,24 +296,12 @@
       const goalX = projectX + inset;
       laid.forEach(child => connect(goalX + nodeWidth, y, child.x, child.y, `${project.id}/goal/${child.key}`));
       const s = summary(data);
-      const branchRight = ends.reduce((right, end) => Math.max(right, end.x), goalX + nodeWidth);
-      let projectRight = branchRight;
+      let projectRight = laid.reduce((right, branch) => Math.max(right, branch.exitX), goalX + nodeWidth);
       if (deliveryDate) {
-        const joinX = branchRight + mergeGap;
-        const dateX = joinX + tail;
         const edgeKey = project.id + "/delivery/";
-        if (ends.length > 4) {
-          // A shared rail keeps a dense group legible as more work is revealed.
-          for (const end of ends) connect(end.x, end.y, joinX, end.y, edgeKey + end.key);
-          connect(joinX, ends[0].y, joinX, ends.at(-1).y, edgeKey + "rail");
-        } else {
-          for (const end of ends) {
-            // Travel past all descendant columns before bending toward the goal's axis.
-            if (end.x < branchRight) connect(end.x, end.y, branchRight, end.y, edgeKey + "lead/" + end.key);
-            connect(branchRight, end.y, joinX, y, edgeKey + end.key);
-          }
-        }
-        connect(ends.length ? joinX : branchRight, y, dateX, y, edgeKey + "finish");
+        const joinX = laid.length ? joinBranches(laid, y, edgeKey, mergeGap) : projectRight;
+        const dateX = joinX + tail + (laid.length ? 0 : mergeGap);
+        connect(joinX, y, dateX, y, edgeKey + "finish");
         nodes.push(`<button type="button" class="d-delivery-end" style="left:${dateX}px;top:${y}px" data-motion-key="delivery/${e(project.id)}" data-map-project="${e(project.id)}" data-has-issues="${Boolean(s.issues.length)}" data-delivery-action="show-delivery" data-project="${e(project.id)}" data-delivery-date="${e(deliveryDate)}" aria-label="${e(project.name)}，${label} ${e(deliveryDate)}，查看案件時間軸"><i class="chron-mark ${delivered ? "actual" : "plan"}" aria-hidden="true"></i><span>${label}<time datetime="${e(deliveryDate)}">${e(deliveryDate)}</time></span></button>`);
         projectRight = dateX + dateWidth;
       }
