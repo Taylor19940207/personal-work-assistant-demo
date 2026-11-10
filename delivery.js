@@ -217,8 +217,9 @@
     const mergeGap = narrow ? 48 : 86, tail = narrow ? 26 : 38;
     const dateWidth = narrow ? 136 : 158, padding = narrow ? 16 : 52;
     const columnWidth = inset + step + nodeWidth + mergeGap + tail + dateWidth + padding;
-    const columns = projects.length > 1 && !expanded.size && workspace.clientWidth >= columnWidth * 1.25 ? 2 : 1;
-    let bandStart = 65, bandBottom = 65;
+    const columns = projects.length > 1 && workspace.clientWidth >= columnWidth * 1.25 ? 2 : 1;
+    const bandGap = 64;
+    let bandStart = 65, bandBottom = 65, nextColumnX = 0;
     function connect(x1, y1, x2, y2, key, bend = Math.min(48, (x2 - x1) / 2)) {
       paths.push(`<path data-motion-edge="${e(key)}" d="M${x1} ${y1} C${x1 + bend} ${y1},${x2 - bend} ${y2},${x2} ${y2}"/>`);
     }
@@ -244,17 +245,27 @@
       route(branches.filter(branch => branch.y > y));
       return joinX;
     }
-    function layoutTask(project, task, x, width, dated) {
+    function visibleBranches(data, siblings, parentId) {
+      const limit = visibleCounts.get(parentId) || 4;
+      const branches = siblings.slice(0, limit).map(task => {
+        const kids = children(data, task.id);
+        const shown = kids.length && expanded.has(task.id) ? visibleBranches(data, kids, task.id) : [];
+        const rows = shown.reduce((sum, branch) => sum + branch.rows, 0) || 1;
+        return {task, childCount:kids.length, shown, rows};
+      });
+      if (siblings.length > limit) branches.push({parentId, remaining:siblings.length - limit, rows:1});
+      return branches;
+    }
+    function layoutTask(project, branch, x, width, dated) {
+      if (branch.remaining) return moreNode(branch.parentId, branch.remaining, x, width, project.id);
+      const {task, childCount, shown} = branch;
       const data = workspaceData[project.id];
-      const kids = children(data, task.id);
       const top = cursor;
       let y, exitX = x + width;
-      const limit = visibleCounts.get(task.id) || 4;
-      if (expanded.has(task.id) && kids.length) {
+      if (shown.length) {
         const childX = exitX + (narrow ? 28 : 62);
         const childWidth = nodeWidth - (narrow ? 12 : 26);
-        const laid = kids.slice(0, limit).map(child => layoutTask(project, child, childX, childWidth, dated));
-        if (kids.length > limit) laid.push(moreNode(task.id, kids.length - limit, childX, childWidth, project.id));
+        const laid = shown.map(child => layoutTask(project, child, childX, childWidth, dated));
         y = (laid[0].y + laid.at(-1).y) / 2;
         laid.forEach(child => connect(exitX, y, child.x, child.y, `${project.id}/${task.id}/${child.key}`));
         exitX = dated && laid.length > 1
@@ -269,7 +280,7 @@
       const info = [workMeta(task), alert].filter(Boolean).join(" · ");
       nodes.push(`<article data-motion-key="work/${e(task.id)}" class="d-map-node ${task.status === "doing" ? "is-active" : ""}" style="--work-node-width:${width}px;left:${x}px;top:${y}px;--project-color:${project.color}" data-map-project="${e(project.id)}" data-has-issues="${Boolean(s.issues.length)}">
         <button type="button" class="d-map-open" data-delivery-action="open" data-project="${e(project.id)}" data-work="${e(task.id)}">${badge(task)}<strong>${e(task.title)}</strong>${info ? `<small>${e(info)}</small>` : ""}</button>
-        ${kids.length ? action(`${expanded.has(task.id) ? "−" : "+"} ${kids.length}`, "expand", task.id, `aria-expanded="${expanded.has(task.id)}" aria-label="展開或收合 ${e(task.title)} 的子工作"`) : ""}
+        ${childCount ? action(`${expanded.has(task.id) ? "−" : "+"} ${childCount}`, "expand", task.id, `aria-expanded="${expanded.has(task.id)}" aria-label="展開或收合 ${e(task.title)} 的子工作"`) : ""}
       </article>`);
       return {x, y, exitX, top, bottom:cursor, key:task.id};
     }
@@ -279,17 +290,18 @@
       return {x, y, exitX:x + width, top, bottom:cursor, key:`more/${id}`};
     }
     for (const [projectIndex, project] of projects.entries()) {
-      projectX = (projectIndex % columns) * columnWidth;
-      cursor = bandStart;
+      projectX = projectIndex % columns === 0 ? 0 : nextColumnX;
       const data = workspaceData[project.id]; normalize(data);
       const goalIndex = nodes.length;
       const roots = children(data);
-      const limit = visibleCounts.get(project.id) || 4;
+      const branches = visibleBranches(data, roots, project.id);
+      // Let a branch grow around its current position using the space between rows first.
+      const extraRows = branches.reduce((sum, branch) => sum + branch.rows - 1, 0);
+      cursor = bandStart - Math.min(bandGap - 8, extraRows * row / 2);
       const delivered = data.lifecycle === "completed";
       const deliveryDate = delivered ? data.goal.acceptedAt?.slice(0,10) : data.deadlineDate;
       const workX = projectX + inset + step;
-      const laid = roots.slice(0, limit).map(task => layoutTask(project, task, workX, nodeWidth, Boolean(deliveryDate)));
-      if (roots.length > limit) laid.push(moreNode(project.id, roots.length - limit, workX, nodeWidth, project.id));
+      const laid = branches.map(branch => layoutTask(project, branch, workX, nodeWidth, Boolean(deliveryDate)));
       const label = delivered ? "已對外交付" : "預計交付";
       const y = laid.length ? (laid[0].y + laid.at(-1).y) / 2 : cursor + row / 2;
       if (!laid.length) cursor += row;
@@ -312,7 +324,9 @@
       nodes.splice(goalIndex, 0, `<article data-motion-key="goal/${e(project.id)}" class="d-map-goal" style="left:${goalX}px;top:${y}px;--project-color:${project.color}" data-map-project="${e(project.id)}" data-has-issues="${Boolean(s.issues.length)}">
         <button type="button" data-open-project="${e(project.id)}"><small>${goal === project.name ? "交付目標" : e(project.name) + " · 交付目標"}</small><strong>${e(goal)}</strong><span>${e(getProjectSnapshot(project).state)}${progress}</span></button>
       </article>`);
-      bandBottom = Math.max(bandBottom, cursor + 64);
+      // A wide case only displaces its neighbor in this row.
+      nextColumnX = Math.max(columnWidth, projectRight + padding);
+      bandBottom = Math.max(bandBottom, cursor + bandGap);
       if (projectIndex % columns === columns - 1) bandStart = bandBottom;
     }
     cursor = bandBottom;
@@ -1261,6 +1275,17 @@
     const item = data.tasks.find(work => work.id === start);
     return [...children(data, start).filter(child => child.required).map(child => child.id), ...(item?.conditions || []).map(condition => condition.workId)].some(id => hasPath(data, id, target, seen));
   }
+  function redrawMapAt(anchor) {
+    const before = anchor?.getBoundingClientRect();
+    renderTopology();
+    if (!before) return;
+    const sameNode = mapStage.querySelector(`[data-motion-key="${CSS.escape(anchor.dataset.motionKey)}"]`);
+    if (!sameNode) return;
+    const after = sameNode.getBoundingClientRect();
+    uiState.x += (before.left - after.left) / appLayoutScale();
+    uiState.y += (before.top - after.top) / appLayoutScale();
+    applyTransform();
+  }
   document.addEventListener("click", event => {
     const button = event.target.closest("[data-delivery-action]");
     if (!button) return;
@@ -1284,13 +1309,8 @@
       const treeSurface = uiState.surface === "project" ? projectRoomContent : mobileOverview;
       const rows = window.interfaceMotion?.captureRows(treeSurface);
       const anchor = button.closest(".d-map-node");
-      const before = anchor?.getBoundingClientRect();
       expanded.has(id) ? expanded.delete(id) : expanded.add(id);
-      renderTopology(); renderMobileOverview();
-      if (before) {
-        const after = mapStage.querySelector(`[data-delivery-action="expand"][data-work="${CSS.escape(id)}"]`)?.closest(".d-map-node")?.getBoundingClientRect();
-        if (after) { uiState.x += (before.left - after.left) / appLayoutScale(); uiState.y += (before.top - after.top) / appLayoutScale(); applyTransform(); }
-      }
+      redrawMapAt(anchor); renderMobileOverview();
       if (uiState.surface === "project") renderProjectRoom();
       window.interfaceMotion?.settleMap(motion);
       window.interfaceMotion?.settleRows(treeSurface, rows);
@@ -1301,7 +1321,10 @@
     if (name === "more") {
       const motion = window.interfaceMotion?.captureMap();
       const previousKeys = new Set([...mapStage.querySelectorAll('[data-motion-key]')].map(node => node.dataset.motionKey));
-      visibleCounts.set(id, (visibleCounts.get(id) || 4) + 4); renderTopology();
+      const key = (id === projectId ? "goal/" : "work/") + id;
+      const anchor = mapStage.querySelector(`[data-motion-key="${CSS.escape(key)}"]`);
+      visibleCounts.set(id, (visibleCounts.get(id) || 4) + 4);
+      redrawMapAt(anchor);
       window.interfaceMotion?.settleMap(motion);
       const nextControl = mapStage.querySelector(`[data-delivery-action="more"][data-work="${CSS.escape(id)}"]`)
         || [...mapStage.querySelectorAll('[data-motion-key]')].find(node => !previousKeys.has(node.dataset.motionKey))?.querySelector('button');
