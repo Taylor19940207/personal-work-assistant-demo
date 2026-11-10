@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark" />
-    <title>個人工作台 - 工作關係圖</title>
+    <title>個人工作台 - 拓樸圖</title>
     <link rel="stylesheet" href="./styles.css?v=20261109-scale" />
     <link rel="stylesheet" href="./timeline.css?v=20261109-work-first" />
-    <link rel="stylesheet" href="./delivery.css?v=20261109-report-return" />
+    <link rel="stylesheet" href="./delivery.css?v=20261110-briefing" />
     <link rel="stylesheet" href="./workspace.css?v=20261109-report-return" />
     <link rel="stylesheet" href="./documents.css?v=20261109-scale" />
     <link rel="stylesheet" href="./motion.css?v=20261109-timeline-1" />
@@ -27,7 +27,7 @@
 
         <div class="view-switch" aria-label="主要檢視">
           <button class="view-switch__button" type="button" data-view="mine">我的工作</button>
-          <button class="view-switch__button is-active" type="button" data-view="map" aria-pressed="true">工作關係圖</button>
+          <button class="view-switch__button is-active" type="button" data-view="map" aria-pressed="true">拓樸圖</button>
           <button class="view-switch__button" type="button" data-view="list" aria-pressed="false">時間軸</button>
         </div>
 
@@ -61,11 +61,11 @@
           </div>
         </section>
 
-        <section id="map-view" class="map-region" aria-label="工作關係圖">
+        <section id="map-view" class="map-region" aria-label="拓樸圖">
           <div class="map-legend" aria-label="節點圖例">
             <span><i class="legend-mark event"></i>進度紀錄</span>
             <span><i class="legend-mark task"></i>工作</span>
-            <span><i class="legend-mark decision"></i>處理決定</span>
+            <span><i class="legend-mark decision"></i>決策</span>
             <span><i class="legend-mark issue"></i>問題</span>
             <span><i class="legend-mark current"></i>目前位置</span>
           </div>
@@ -119,7 +119,7 @@
         <div id="capture-context" class="capture-context" hidden></div>
 
         <fieldset id="capture-issue-field" class="capture-link-field" hidden>
-          <legend>這個處理決定回應哪個問題（必填）</legend>
+          <legend>這個決策回應哪個問題（必填）</legend>
           <label class="visually-hidden" for="capture-issue">選擇既有問題</label>
           <select id="capture-issue" name="issueId" aria-describedby="capture-issue-help"></select>
           <p id="capture-issue-help" class="field-help">先選問題，再記下決定和原因。</p>
@@ -158,7 +158,7 @@
 
         <div id="capture-next-task-field" class="capture-toggle-field" hidden>
           <label for="capture-create-task"><input id="capture-create-task" name="createTask" type="checkbox" />把上面的下一步建立成工作</label>
-          <p class="field-help">建立後會進入待處理，並保留它來自哪個問題、處理決定或工作。</p>
+          <p class="field-help">建立後會進入待處理，並保留它來自哪個問題、決策或工作。</p>
         </div>
 
         <fieldset id="capture-task-fields" class="schedule-fields">
@@ -305,14 +305,14 @@
     <input id="evidence-input" class="visually-hidden" type="file" multiple />
     <input id="backup-input" class="visually-hidden" type="file" accept="application/json,.json" />
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script src="./app.js?v=20261110-terms"></script>
-    <script src="./documents-model.js?v=20261110-terms"></script>
-    <script src="./requirement-lists.js?v=20261110-terms"></script>
-    <script src="./timeline.js?v=20261110-terms"></script>
-    <script src="./delivery.js?v=20261110-terms"></script>
-    <script src="./workspace.js?v=20261110-terms"></script>
-    <script src="./documents-ui.js?v=20261110-terms"></script>
+    <script src="./app.js?v=20261110-briefing"></script>
+    <script src="./documents-model.js?v=20261110-briefing"></script>
+    <script src="./requirement-lists.js?v=20261110-briefing"></script>
+    <script src="./timeline.js?v=20261110-briefing"></script>
+    <script src="./delivery.js?v=20261110-briefing"></script>
+    <script src="./workspace.js?v=20261110-briefing"></script>
+    <script src="./documents-ui.js?v=20261110-briefing"></script>
     <script src="./motion.js?v=20261110-terms"></script>
-    <script src="./mobile.js?v=20261110-terms"></script>
+    <script src="./mobile.js?v=20261110-briefing"></script>
   </body>
 </html>

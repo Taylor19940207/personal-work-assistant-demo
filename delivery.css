@@ -178,9 +178,16 @@
 
 .d-home { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: clamp(16px, calc(3vw / var(--app-scale)), 48px); }
 .d-home h2 { font-size: 1.2rem; margin: 1em 0 .5em; }
+.d-brief-jump { display: none; }
+@media (max-width: 680px) {
+  .d-home-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .d-home-heading h2 { flex: none; scroll-margin-top: calc(var(--m-bar-height, 52px) + 54px); }
+  .d-brief-jump { display: block; border: 0; background: transparent; color: var(--signal); min-height: 44px; text-align: end; overflow-wrap: anywhere; cursor: pointer; }
+}
 .d-home h2 small { color: var(--muted); font: 12px var(--mono); }
 .d-home-row { display: grid; gap: 6px; width: 100%; min-height: 52px; text-align: left; color: var(--paper); border: 0; border-bottom: 1px solid var(--line); padding: 12px 4px; background: transparent; cursor: pointer; }
-.d-home-row small { color: var(--paper-2); }
+.d-home-row small { color: var(--paper-2); line-height: 1.5; }
+.d-home-action { justify-self: start; color: var(--signal); font-size: .85em; }
 .d-home-row:is(:hover,:focus-visible) strong { color: var(--signal); }
 .d-dialog [data-correction]:not([hidden]) { display: grid; gap: 12px; }
 

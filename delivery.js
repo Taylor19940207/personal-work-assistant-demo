@@ -179,7 +179,7 @@
       type: "task", semanticMain: !task.parentId, x: 400 + index * 220, yOffset: 0,
       label: task.title, date: normalizeDateValue(task.due), current: ["doing", "review"].includes(task.status),
       summary: workCurrent(task), action: workCurrent(task),
-      decision: "到工作頁查看問題與處理決定", next: task.checklist.find(item => !item.done)?.title || "查看工作詳情",
+      decision: "到工作頁查看問題與決策", next: task.checklist.find(item => !item.done)?.title || "查看工作詳情",
       evidence: data.files.filter(file => file.workIds?.includes(task.id)).map(file => file.name).join("、") || "尚未加入文件"
     }));
   };
@@ -290,7 +290,7 @@
         const issueId = item.id.startsWith("activity-") ? item.id.slice(9) : item.id;
         const linkedIssue = data.issues.find(issue => issue.id === issueId);
         const tab = linkedIssue ? "records" : item.taskId ? "board" : "activity";
-        return `<button class="tree-event" type="button" data-open-project-tab="${tab}" data-project-id="${e(project.id)}" data-record-id="${e(linkedIssue?.id || item.taskId || item.id)}"><time>${e(item.date)}</time><strong>${e(item.title)}</strong><small>${linkedIssue ? "問題處理" : "查看紀錄"}</small></button>`;
+        return `<button class="tree-event" type="button" data-open-project-tab="${tab}" data-project-id="${e(project.id)}" data-record-id="${e(linkedIssue?.id || item.taskId || item.id)}"><time>${e(item.date)}</time><strong>${e(item.title)}</strong><small>${linkedIssue ? "查看問題" : "查看紀錄"}</small></button>`;
       }).join("") || `<p class="d-help">${uiState.mode === "issues" ? "目前沒有待解決問題" : "尚無紀錄"}</p>`}</div></details>`;
     }).join("")}</div></details>`;
   };
@@ -381,15 +381,15 @@
       delete back.dataset.action;
       back.dataset.deliveryAction = "work-up";
       back.dataset.work = selected.id;
-      back.title = history.state?.fromWork?.timelineOrigin ? "回時間軸" : history.state?.fromWork?.listOrigin ? "回清單項目" : "返回上一層";
+      back.title = history.state?.fromWork?.timelineOrigin ? "回時間軸" : history.state?.fromWork?.listOrigin ? "回到清單項目" : "返回上一層";
       back.setAttribute("aria-label", back.title);
       const from = history.state?.fromWork;
       if (from?.listOrigin) {
         const parent = data.tasks.find(work=>work.id===from.work);
         const request = parent?.requests.find(req=>req.id===from.listOrigin.request);
         const item = request?.items?.find(row=>row.id===from.listOrigin.row);
-        back.textContent = "← 回清單";
-        back.title = item ? `回「${parent.title}」清單的「${item.title}」` : "回清單項目";
+        back.textContent = "← 回到清單";
+        back.title = item ? `回「${parent.title}」清單的「${item.title}」` : "回到清單項目";
         back.setAttribute("aria-label",back.title);
         back.classList.add("d-timeline-back");
         if (item) projectRoomHeader.querySelector(".project-heading-copy").insertAdjacentHTML("beforeend",
@@ -459,7 +459,7 @@
         <details class="d-work-history"><summary>工作紀錄 · ${task.history.length}</summary><div class="d-section-title">${action("新增紀錄", "note", task.id)}</div>${task.history.length ? task.history.map(item => `<div class="d-history"><time>${e((item.documentEventId ? item.date : item.at || item.date).slice(0, 10))}</time><div><strong>${e(item.title)}</strong><p>${e(item.detail)}</p></div></div>`).join("") : `<p class="d-help">新的變更會記在這裡；舊紀錄仍保留在案件的完整紀錄中。</p>`}
         ${task.reviewRounds.length ? `<details><summary>整項工作確認紀錄 · ${task.reviewRounds.length} 輪</summary>${task.reviewRounds.map(round => `<p>${e(round.person)} · ${dateLabel(round.sentAt?.slice(0, 10))}<br>${e(round.request)}<br>${e(round.reply || "尚無回覆")} · ${e(requestNames[round.state] || "舊版紀錄")}</p>`).join("")}</details>` : ""}</details>
       </div><aside class="d-side">
-        <section ${s.issues.length || issues.length ? "" : "data-unused-tools"}><div class="d-section-title"><h3>問題與處理決定</h3>${action("記錄問題", "issue", task.id)}</div>${issues.map(issue => `<button type="button" class="d-context-link" data-open-project-tab="records" data-project-id="${e(project.id)}" data-record-id="${e(issue.id)}"><strong>${e(issue.title)}</strong><span>${issue.status === "open" ? "未解決" : "已解決"} · 查看處理與處理決定 ↗</span></button>`).join("") || `<p>目前沒有工作層級問題。</p>`}${s.issues.length > issues.filter(issue => issue.status === "open").length ? `<p class="text-warning">子工作另有待解決問題，可展開查看。</p>` : ""}</section>
+        <section ${s.issues.length || issues.length ? "" : "data-unused-tools"}><div class="d-section-title"><h3>問題與決策</h3>${action("記錄問題", "issue", task.id)}</div>${issues.map(issue => `<button type="button" class="d-context-link" data-open-project-tab="records" data-project-id="${e(project.id)}" data-record-id="${e(issue.id)}"><strong>${e(issue.title)}</strong><span>${issue.status === "open" ? "未解決" : "已解決"} · 查看處理與決策 ↗</span></button>`).join("") || `<p>目前沒有工作層級問題。</p>`}${s.issues.length > issues.filter(issue => issue.status === "open").length ? `<p class="text-warning">子工作另有待解決問題，可展開查看。</p>` : ""}</section>
         <section><div class="d-section-title"><h3>文件與連結</h3>${action("關聯資料", "evidence", task.id)}</div>${files.map(file => `<div class="d-evidence"><strong>${e(file.name)}</strong><small>${file.versions.length} 個版本${file.workIds.length > 1 ? ` · ${file.workIds.length} 個工作共用` : ""}</small>${file.url ? `<a href="${e(safeURL(file.url))}" target="_blank" rel="noopener noreferrer">開啟來源 ↗</a>` : `<small>只記了檔名，尚未加入檔案</small>`}<div>${action("新增版本", "version", task.id, `data-item="${e(file.id)}"`)}${action("從工作移除", "unlink", task.id, `data-item="${e(file.id)}"`)}</div></div>`).join("") || `<p>將既有資料或來源連結關聯到這項工作。</p>`}</section>
         <section ${task.conditions.length || task.legacyDependencies?.length ? "" : "data-unused-tools"}><div class="d-section-title"><h3>交付條件</h3>${action("設定條件", "condition", task.id)}</div><p>例如，正式送件前，必須先取得已核對的報告。</p>${task.conditions.map(condition => `<div class="d-condition"><p>${phaseNames[condition.phase]}前：${e(data.tasks.find(item => item.id === condition.workId)?.title || "原工作已移除")}已完成</p>${action("移除", "remove-condition", task.id, `data-item="${e(condition.id)}"`)}</div>`).join("")}${task.legacyDependencies?.length ? `<details><summary>舊版前置關係 · 僅供參考</summary><p>${task.legacyDependencies.map(id => e(data.tasks.find(item => item.id === id)?.title || id)).join("、")}</p><p>未自動轉成限制，可依實際交付條件重新設定。</p></details>` : ""}</section>
       </aside></div>
@@ -471,7 +471,7 @@
     const itemAttr = `data-item="${e(request.id)}"`;
     const inbound = request.direction === "inbound";
     const primary = request.assignment ? (closedRequest(request) ? "" : reviewable(request) ? action("核對交回的資料", "home-check", task.id, itemAttr + ' data-round="' + e(rounds.at(-1).id) + '"') : action("記錄交回", "home-receive", task.id, itemAttr)) : inbound
-      ? (request.state === "preparing" ? action("記錄已提出要求", "send", task.id, itemAttr) : "") + action(request.state === "revise" ? "記錄收到補件" : "記錄收到資料", "reply", task.id, itemAttr)
+      ? (request.state === "preparing" ? action("記錄已索取", "send", task.id, itemAttr) : "") + action(request.state === "revise" ? "記錄收到補件" : "記錄收到資料", "reply", task.id, itemAttr)
       : request.state === "waiting" ? action("記錄回覆", "reply", task.id, itemAttr) : action(["accepted", "cancelled"].includes(request.state) ? "新增一輪" : "記錄送出", "send", task.id, itemAttr);
     const cancel = request.assignment || ["accepted", "cancelled"].includes(request.state) ? "" : action("結束要求", "cancel-request", task.id, itemAttr);
     const history = rounds.map((round, index) => {
@@ -562,7 +562,7 @@
   function requiredValue(values, key, message) { const value = textValue(values, key); if (!value) throw new Error(message); return value; }
   function executionField(task) {
     if (task.status === "doing") return "";
-    return `<label class="d-check"><input type="checkbox" name="startWork" checked><span>${task.status === "queue" ? "同時將這項工作開始為進行中" : task.status === "done" ? "這次有後續工作，同時重新開啟為進行中" : "這次需要繼續處理，同時回到進行中"}</span></label>`;
+    return `<label class="d-check"><input type="checkbox" name="startWork" checked><span>${task.status === "queue" ? "同時開始這項工作" : task.status === "done" ? "重新開啟這項工作，繼續處理" : "將工作移回進行中"}</span></label>`;
   }
   function beginExecution(data, task, values) {
     if (!values.has("startWork") || task.status === "doing") return;
@@ -730,6 +730,27 @@
     requireFormChange();
   }
 
+  function versionInBrief(refs) {
+    const label = refs?.length === 1 && refs[0].versionLabel;
+    const number = label && /^v(\d+)$/i.exec(label);
+    return number ? "第 " + number[1] + " 版" : "";
+  }
+
+  function followTiming(due, followOn, today, inbound) {
+    const follow = followOn || due;
+    const dates = [];
+    if (due) {
+      const dueState = inbound && due < today ? "（已逾期）" : "";
+      dates.push((inbound ? "交件日 " : "預計回覆 ") + due + dueState);
+    }
+    if (follow === today) dates.push("今天請跟進");
+    else if (follow && follow < today) dates.push("原訂 " + follow + " 跟進，請確認進度");
+    else if (follow && follow !== due) dates.push(follow + " 跟進");
+    else if (follow) dates.push("當天跟進");
+    else dates.push("跟進日未定");
+    return dates.join(" · ");
+  }
+
   function myWorkHome() {
     if (!getPortfolioProjects().length) {
       const examples = location.protocol === "file:" && !location.pathname.includes("/dist/") ? "./dist/examples.html" : "./examples.html";
@@ -739,64 +760,109 @@
         ${topologyProjects.length ? '<button type="button" class="d-action" data-workspace-action="manager">查看已封存案件</button>' : ""}
         ${window.exampleWorkspace ? "" : `<a href="${examples}" target="_blank" rel="noopener">先看一個範例 ↗</a>`}</section>`;
     }
-    const mine = [], following = [], today = localISODate();
+    const mine = [], following = [], contacts = new Set(), today = localISODate();
     for (const project of getPortfolioProjects()) {
       const data = workspaceData[project.id];
       if (data.lifecycle === "completed" || uiState.focusProjectId && uiState.focusProjectId !== project.id) continue;
       const totals = summary(data);
       const first = !data.tasks.length;
       if (data.lifecycle === "active" && (first || totals.direct.length && !totals.incomplete.length && !totals.changed)) {
-        const label = first ? "安排第一項工作" : "記錄對外交付";
-        mine.push({day:data.deadlineDate,html:`<div class="d-home-entry"><button type="button" class="d-home-row" data-delivery-action="${first ? "home-first" : "home-deliver"}" data-project="${e(project.id)}"><strong>${label}</strong><small>${e(project.name)}</small></button></div>`});
+        const label = first ? "請安排這個案件的第一項工作。" : "必要工作已完成，實際交付後請登記。";
+        const cta = first ? "安排工作" : "記錄交付";
+        mine.push({day:data.deadlineDate,html:`<div class="d-home-entry"><button type="button" class="d-home-row" data-delivery-action="${first ? "home-first" : "home-deliver"}" data-project="${e(project.id)}"><strong>${label}</strong><small>${e(project.name)}</small><span class="d-home-action">${cta}</span></button></div>`});
       }
       for (const task of data.tasks) {
         if (task.status === "done") continue;
         const assignment = assignmentOf(task);
-        const add = (group, title, day, route, context, extra = "", secondary = "") => {
+        const add = (group, title, day, route, cta, detail = "", extra = "", secondary = "") => {
           const target = `data-project="${e(project.id)}" data-work="${e(task.id)}" ${extra}`;
-          const row = `<button type="button" class="d-home-row" data-delivery-action="${route}" ${target}><strong>${e(title)}</strong><small>${e(project.name)} · ${e(context)}</small></button>`;
+          const context = [project.name, !title.includes(task.title) && task.title, detail].filter(Boolean).join(" · ");
+          const row = `<button type="button" class="d-home-row" data-delivery-action="${route}" ${target}><strong>${e(title)}</strong><small>${e(context)}</small><span class="d-home-action">${e(cta)}</span></button>`;
           const followButton = secondary ? `<button type="button" class="d-home-follow" data-delivery-action="home-follow" ${target}>${secondary}</button>` : "";
-          group.push({ day, html: `<div class="d-home-entry">${row}${followButton}</div>` });
+          group.push({day, html:`<div class="d-home-entry">${row}${followButton}</div>`});
         };
-        for (const req of task.requests.filter(r => !closedRequest(r) || r.items && lists.stats(data,r)<r.items.length)) {
+        const requests = task.requests.filter(r => !closedRequest(r) || r.items && lists.stats(data,r) < r.items.length);
+        for (const req of requests) {
           const attr = 'data-item="' + e(req.id) + '"';
+          const person = req.person || "對方";
+          const inbound = req.direction === "inbound";
           if (req.items) {
-            const ready=lists.stats(data,req);
-            const waiting=req.state==="waiting" && ready===req.items.length;
-            add(waiting ? following : mine, (waiting ? "追蹤提交 · " : ready===req.items.length ? (req.person ? "提交 · " : "檢視已備妥清單 · ") : "準備 · ")+req.title,req.due,"open-request",ready+"/"+req.items.length+" 已備妥"+(req.person ? " · "+req.person : ""),attr);
+            const next = lists.nextItem(data, req);
+            const count = lists.stats(data, req) + "/" + req.items.length + " 已備妥";
+            const itemAttr = next ? attr + ' data-row="' + e(next.item.id) + '"' : attr;
+            let title, cta = "查看清單", group = mine;
+            if (next) {
+              const item = "「" + next.item.title + "」";
+              if (next.state === "checking") {
+                title = item + versionInBrief(next.output?.refs || next.refs) + (next.output ? "已交回，請核對。" : "待核對。");
+                cta = "查看待核對項目";
+              } else if (next.state === "revise") {
+                title = item + "需要補件" + (next.item.note ? "：" + next.item.note : "。");
+              } else if (next.source) {
+                title = item + "正在等「" + next.source.title + "」交回結果。";
+                group = following;
+              } else title = "請準備" + item + "。";
+            } else if (req.state === "waiting") {
+              group = following;
+              title = "「" + req.title + "」已提交，等" + person + "確認。";
+            } else {
+              title = "「" + req.title + "」已備妥" + (req.person ? "，可以提交給" + person : "") + "。";
+            }
+            if (group === following && !next && req.person) contacts.add(req.person);
+            add(group, title, req.due, "open-request", cta, [next && req.title, count, req.due && "清單期限 " + req.due].filter(Boolean).join(" · "), itemAttr);
           } else if (reviewable(req)) {
             const round = req.rounds.at(-1);
-            add(mine, "核對" + req.title, round.receivedDate, "home-check", round.person + "交回 · " + round.receivedDate, attr + ' data-round="' + e(round.id) + '"');
-          } else if (req.state === "waiting" || (req.direction === "inbound" && req.state === "revise")) {
-            const due = req.direction === "inbound" ? req.due : req.expectedDate;
+            const reviewer = req.returnTo && req.returnTo !== "我" ? req.returnTo : "";
+            const version = versionInBrief(round.artifacts);
+            const title = (round.person || person) + "已交件，" + (reviewer ? "等" + reviewer : "請") + "核對" + version + "。";
+            if (reviewer) contacts.add(reviewer);
+            add(reviewer ? following : mine, title, round.receivedDate, "home-check", reviewer ? "記錄核對結果" : "核對交件", "收件日 " + round.receivedDate, attr + ' data-round="' + e(round.id) + '"');
+          } else if (req.state === "waiting" || (inbound && req.state === "revise")) {
+            const due = inbound ? req.due : req.expectedDate;
             const follow = req.followOn || due;
-            const timing = [due && due + (due < today ? " 已逾期" : " 到期"), follow === due && follow ? "" : follow ? follow + " 跟進" : "跟進日未定"].filter(Boolean).join(" · ");
-            const verb = req.assignment || req.direction === "inbound" ? "記錄收件" : "記錄回覆";
-            add(following, verb + " · " + req.title, follow, req.assignment ? "home-receive" : "home-reply", req.person + " · " + timing, attr, follow && follow <= today ? "跟進" : "調整跟進");
+            if (req.assignment && req.person === "我") {
+              const title = req.state === "revise" ? "請補齊資料，再交回給" : "請完成工作，交回給";
+              const recipient = req.returnTo === "我" ? "" : req.returnTo;
+              add(mine, recipient ? title + recipient + "。" : req.state === "revise" ? "請準備補件。" : "請完成這項工作。", due, "home-receive", "記錄交回", [req.reply, due && "交件日 " + due].filter(Boolean).join(" · "), attr);
+              continue;
+            }
+            if (req.person) contacts.add(req.person);
+            const title = req.state === "revise" ? "已請" + person + "補件" : "等" + person + (inbound ? "交件" : "回覆");
+            const detail = [req.state === "revise" && req.reply, followTiming(due, req.followOn, today, inbound)].filter(Boolean).join(" · ");
+            add(following, title + " · " + req.title, follow, req.assignment ? "home-receive" : "home-reply", inbound ? "記錄收件" : "記錄回覆", detail, attr, follow && follow <= today ? "記錄跟進" : "調整跟進日");
           } else {
-            add(mine, (req.direction === "inbound" ? "索取" : "提供") + req.title, req.due, "home-send", req.person + (req.due ? " · " + req.due : ""), attr);
+            const title = inbound ? "請向" + person + "索取「" + req.title + "」。" : req.state === "revise" ? person + "請你修改「" + req.title + "」。" : "請準備「" + req.title + "」給" + person + "。";
+            add(mine, title, req.due, "home-send", inbound ? "記錄已索取" : "記錄送出", [req.reply, req.due && "期限 " + req.due].filter(Boolean).join(" · "), attr);
           }
         }
         for (const step of task.checklist.filter(item => !item.done)) {
-          add(mine, "完成 · " + step.title, step.due, "home-step", task.title + (step.due ? " · " + step.due : ""), 'data-item="' + e(step.id) + '"');
+          add(mine, step.title, step.due, "home-step", "標記完成", step.due && "期限 " + step.due, 'data-item="' + e(step.id) + '"');
         }
         if (assignment?.state === "accepted" && !stillNeeded(data, task, assignment)) {
-          add(mine, "確認完成" + task.title, "", "home-complete", "資料已核對 · 交回給" + assignment.returnTo);
+          add(mine, "交件已核對合格，請確認工作是否完成。", "", "home-complete", "確認完成", assignment.returnTo && "交回給" + assignment.returnTo);
         }
-        if ((!assignment || assignment.state === "cancelled") && !task.requests.some(r => !closedRequest(r)) && !task.checklist.some(step => !step.done) ) {
-          if (task.status === "review" && task.review?.person) {
-            add(following, "查看確認進度 · " + task.title, task.review.expectedDate, "open", task.review.person + (task.review.expectedDate ? " · " + task.review.expectedDate : ""));
-            continue;
+        if ((!assignment || assignment.state === "cancelled") && !requests.length && !task.checklist.some(step => !step.done)) {
+          if (task.status === "review") {
+            const review = task.reviewRounds.findLast(round => round.state === "waiting") || task.review;
+            const mineToReview = review?.person === "我";
+            if (review?.person && !mineToReview) contacts.add(review.person);
+            add(mineToReview ? mine : following, mineToReview ? "工作已交回，請核對結果。" : "工作已交回，" + (review?.person ? "等" + review.person + "確認。" : "確認人未指定。"), review?.expectedDate, "open", "查看工作", review?.expectedDate && "預計回覆 " + review.expectedDate);
+          } else {
+            const title = task.listOutput ? "「" + task.title + "」已交回結果，請確認工作是否完成。" : (task.status === "queue" ? "待開始" : "進行中") + " · " + task.title;
+            add(mine, title, normalizeDateValue(task.due), "open", "查看工作", normalizeDateValue(task.due) && "工作期限 " + dateLabel(task.due));
           }
-          add(mine, "處理" + task.title, normalizeDateValue(task.due), "open", "工作期限 " + dateLabel(task.due));
         }
       }
     }
-    function group(title, rows, empty) {
+    function group(id, title, rows, empty, jump = "") {
       rows.sort((a, b) => (a.day || "9999").localeCompare(b.day || "9999"));
-      return '<section><h2>' + title + ' <small>' + rows.length + '</small></h2>' + (rows.map(row => row.html).join("") || '<p class="d-help">' + empty + '</p>') + '</section>';
+      return '<section><header class="d-home-heading"><h2 id="brief-' + id + '" tabindex="-1">' + title + ' <small>' + rows.length + '</small></h2>' + jump + '</header>' + (rows.map(row => row.html).join("") || '<p class="d-help">' + empty + '</p>') + '</section>';
     }
-    return '<div class="d-home">' + group("輪到我", mine, "目前沒有要處理的事。") + group("我在跟進", following, "目前沒有等待中的交件。") + '</div>';
+    const who = [...contacts].slice(0, 2).join("、");
+    const jump = (id, label) => '<button class="d-brief-jump" type="button" data-delivery-action="brief-jump" aria-controls="brief-' + id + '">' + e(label) + '</button>';
+    const toFollow = following.length ? jump("following", "我在跟進 " + following.length + (who ? " · " + who : "") + " ↓") : "";
+    return '<div class="d-home">' + group("mine", "輪到我", mine, "目前沒有要處理的事。", toFollow) +
+      group("following", "我在跟進", following, "目前沒有待跟進的事項。", mine.length ? jump("mine", "回到輪到我 ↑") : "") + '</div>';
   }
 
   function workForm(data, task, parentId = "") {
@@ -937,10 +1003,10 @@
   }
   function sendForm(data, task, request) {
     const inbound = request.direction === "inbound";
-    form(inbound ? "記錄已向對方索取資料" : "記錄送出資料", inbound ? `向 ${e(request.person)} 索取 ${e(request.title)}。儲存後可跟進對方的交件日期。` : `交給 ${e(request.person)} · ${e(request.title)}。這筆紀錄會保留送出當時的版本。`,
-      field(inbound ? "實際提出日期" : "實際送出日期", "sentDate", localISODate(), "date", true) + field(inbound ? "要求內容／說明" : "這次送出的內容", "note", request.rounds.at(-1)?.note || request.criteria || request.title, "textarea", true) +
+    form(inbound ? "記錄索取資料" : "記錄送出資料", inbound ? `${e(request.title)} · 索取對象：${e(request.person)}` : `交給 ${e(request.person)} · ${e(request.title)}。這筆紀錄會保留送出當時的版本。`,
+      field(inbound ? "實際索取日" : "實際送出日期", "sentDate", localISODate(), "date", true) + field(inbound ? "要求內容／說明" : "這次送出的內容", "note", request.rounds.at(-1)?.note || request.criteria || request.title, "textarea", true) +
       field(inbound ? "約定收件日期" : "這一輪預計回覆日期", "expectedDate", request.expectedDate || (inbound ? request.due : ""), "date") +
-      (inbound ? "" : artifactFields(data, task, request.rounds.at(-1)?.artifacts)) + executionField(task), inbound ? "記錄已提出" : "記錄送出", values => {
+      (inbound ? "" : artifactFields(data, task, request.rounds.at(-1)?.artifacts)) + executionField(task), inbound ? "記錄已索取" : "記錄送出", values => {
         const sentDate = requiredValue(values, "sentDate", "請填寫實際送出日期");
         if (sentDate > localISODate()) throw new Error("實際送出日期不能在未來；尚未送出請調整提供期限");
         const note = requiredValue(values, "note", "請填寫送出內容");
@@ -1032,6 +1098,12 @@
     if (!button) return;
     const name = button.dataset.deliveryAction, id = button.dataset.work || "", itemId = button.dataset.item;
     const projectId = button.dataset.project || uiState.projectId;
+    if (name === "brief-jump") {
+      const heading = document.getElementById(button.getAttribute("aria-controls"));
+      heading?.focus({preventScroll:true});
+      heading?.scrollIntoView({block:"start",behavior:"instant"});
+      return;
+    }
     if (name === "expand") {
       const motion = window.interfaceMotion?.captureMap();
       const treeSurface = uiState.surface === "project" ? projectRoomContent : mobileOverview;
@@ -1069,6 +1141,7 @@
       // Run after the ordinary room-entry focus, which otherwise resets this jump to the top.
       requestAnimationFrame(() => {
         if (uiState.projectId !== projectId || uiState.focusRecordId !== id) return;
+        if (button.dataset.row) return lists.focusRow(itemId, button.dataset.row);
         const target = projectRoomContent.querySelector(selector);
         if (target?.matches("[data-list-disclosure]")) target.open=true;
         target?.scrollIntoView({ block: "center", behavior: "instant" });

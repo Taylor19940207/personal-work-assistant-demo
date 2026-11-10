@@ -51,6 +51,14 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
     return previous && JSON.stringify(previous)===JSON.stringify(snapshot);
   }
   function stats(data,req) { return req.items.filter(item => rowView(data,item).state === "ready").length; }
+  function nextItem(data, req) {
+    const rows = req.items.map(item => ({ item, ...rowView(data, item) }));
+    return rows.find(row => row.state === "checking" && row.output)
+      || rows.find(row => row.state === "checking")
+      || rows.find(row => row.state === "revise")
+      || rows.find(row => row.state === "missing" && !row.source)
+      || rows.find(row => row.state === "missing");
+  }
   function refButton(data,ref,context="") {
     const file = data.files.find(f => f.id === ref.fileId);
     const v = file?.versions.find(v => v.id === ref.versionId);
@@ -118,7 +126,7 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
       '<div data-link-preview aria-live="polite"></div>' +
       select("目前狀態","rowState",Object.entries(statuses),state) +
       field("缺什麼／確認紀錄（選填）","rowNote",item.note,"textarea") +
-      select("從工作取得（選填）", "source", choices, currentId) +
+      select("來源工作（選填）", "source", choices, currentId) +
       '<div data-new-assignment hidden>'+field("交給誰","assignee")+field("交回日期（選填）","due","","date")+'</div>' +
       '<details class="d-work-options"><summary>加入文件或網址</summary><div>'+artifactFields(data,task)+replace+field("來源網址","rowUrl","","url")+
       ((item.refs || []).length ? '<fieldset><legend>保留的資料</legend>'+item.refs.map((ref,i)=>`<label class="d-check"><input type="checkbox" name="keep" value="${i}" checked><span>${e(ref.name)} · ${e(ref.versionLabel)}</span></label>`).join("")+'</fieldset>' : "")+'</div></details>'+
@@ -368,5 +376,5 @@ function createRequirementLists({ form, field, select, action, uid, record, norm
       record(data,task,"對方已確認",req.title); if(saveWorkspaceData()) refreshProjectDataSurface();
     }
   }
-  return {create,fields,card,handle,stats,newRows,focusRow,resultCard};
+  return {create,fields,card,handle,stats,nextItem,newRows,focusRow,resultCard};
 }

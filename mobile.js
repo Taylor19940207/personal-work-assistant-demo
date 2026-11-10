@@ -8,7 +8,7 @@
   bar.innerHTML = `<button type="button" class="m-back" data-action="leave-project">← 全局</button><select class="m-case-select" aria-label="查看案件"></select><button type="button" data-action="open-command">搜尋</button><button type="button" data-doc-action="library">文件</button><button type="button" data-m-action="add">＋新增</button><button type="button" data-m-action="menu">更多</button>`;
   document.querySelector('.command-bar').append(bar);
   const views = document.createElement('nav'); views.className = 'm-views'; views.setAttribute('aria-label', '全局檢視');
-  views.innerHTML = ['mine:我的工作', 'tree:案件', 'canvas:工作關係圖', 'list:時間軸'].map(item => { const [id, name] = item.split(':'); return `<button type="button" data-m-view="${id}" aria-pressed="false">${name}</button>`; }).join('');
+  views.innerHTML = ['mine:我的工作', 'tree:案件', 'canvas:拓樸圖', 'list:時間軸'].map(item => { const [id, name] = item.split(':'); return `<button type="button" data-m-view="${id}" aria-pressed="false">${name}</button>`; }).join('');
   workspace.prepend(views);
   const controls = document.createElement('div'); controls.className = 'm-map-controls';
   controls.innerHTML = `<button type="button" data-action="fit">顯示全圖</button><details><summary>工具</summary><div><button type="button" data-action="zoom-in">＋ 放大</button><button type="button" data-action="zoom-out">− 縮小</button><button type="button" data-m-action="help">操作說明</button></div></details>`;
@@ -38,9 +38,9 @@
       delete back.dataset.action;
       back.dataset.deliveryAction = "work-up";
       back.dataset.work = current.id;
-      back.textContent = history.state?.fromWork?.timelineOrigin ? "← 回時間軸" : history.state?.fromWork?.listOrigin ? "← 回清單" : "← 上一層";
+      back.textContent = history.state?.fromWork?.timelineOrigin ? "← 回時間軸" : history.state?.fromWork?.listOrigin ? "← 回到清單" : "← 上一層";
       const parent = workspaceData[uiState.projectId].tasks.find(task => task.id === current.parentId);
-      back.setAttribute("aria-label", history.state?.fromWork?.timelineOrigin ? "回時間軸" : history.state?.fromWork?.listOrigin ? projectRoomHeader.querySelector(".project-back")?.title || "回清單項目" : parent ? "返回「" + parent.title + "」" : "返回案件工作");
+      back.setAttribute("aria-label", history.state?.fromWork?.timelineOrigin ? "回時間軸" : history.state?.fromWork?.listOrigin ? projectRoomHeader.querySelector(".project-back")?.title || "回到清單項目" : parent ? "返回「" + parent.title + "」" : "返回案件工作");
     } else {
       delete back.dataset.deliveryAction; delete back.dataset.work; back.removeAttribute("aria-label");
       back.dataset.action = "leave-project"; back.textContent = "← 全局";
@@ -115,7 +115,7 @@
       item('操作說明', 'data-m-action="help"') + '<a class="d-action" href="./glossary.html" target="_blank" rel="noopener">工作用語辭典 ↗</a>');
     if (action === 'help') {
       controls.querySelector('details').open = false;
-      showMenu('操作說明', '<p>案件：展開案件，查看各項工作的狀態；點工作進入操作。</p><p>工作關係圖可單指拖曳、雙指縮放。點名稱開啟工作，點＋展開子工作。</p><p>點「顯示全圖」可讓整張工作關係圖回到畫面內。</p><p>時間軸依日期顯示各案件的進度。</p>');
+      showMenu('操作說明', '<p>案件：展開案件，查看各項工作的狀態；點工作進入操作。</p><p>拓樸圖可單指拖曳、雙指縮放。點名稱開啟工作，點＋展開子工作。</p><p>點「顯示全圖」可讓整張拓樸圖回到畫面內。</p><p>時間軸依日期顯示各案件的進度。</p>');
     }
     if (action === 'add') {
       if (uiState.surface !== 'project') return workspaceManager.newProjectDialog();
