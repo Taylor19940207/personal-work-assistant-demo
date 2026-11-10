@@ -16,12 +16,12 @@
       ids.add(doc.id);
       if (new Set(doc.versions.map(v => v?.id)).size !== doc.versions.length || doc.versions.some(v => !v || typeof v.id !== "string")) throw new Error("文件版本格式不正確");
       if (doc.currentVersionId && !doc.versions.some(v => v.id === doc.currentVersionId)) throw new Error("找不到文件目前版本");
-      if (doc.events.some(event => !event || typeof event.id !== "string" || event.versionId && !doc.versions.some(v => v.id === event.versionId))) throw new Error("文件履歷引用了不存在的版本");
+      if (doc.events.some(event => !event || typeof event.id !== "string" || event.versionId && !doc.versions.some(v => v.id === event.versionId))) throw new Error("文件履歷中有一筆版本遺失，請檢查備份是否完整");
       doc.aliases ||= [];
     }
   }
   function bind(file, library) {
-    if (!find(file.documentId, library)) throw new Error("案件引用的文件不存在，已停止保存");
+    if (!find(file.documentId, library)) throw new Error("案件引用的文件不存在，已停止儲存");
     for (const key of fields) {
       delete file[key];
       Object.defineProperty(file, key, { configurable: true, enumerable: false,
@@ -149,7 +149,7 @@
     const targetFile = context.fileId ? data?.files.find(file => file.id === context.fileId) : null;
     const targetId = context.documentId || targetFile?.documentId;
     if ((context.fileId || context.documentId) && !find(targetId)) throw new Error("要更新的文件已不存在");
-    if (targetId && context.baseVersionId && current(find(targetId))?.id !== context.baseVersionId) throw new Error("文件已有新版本，請重新開啟更新表單，確認後再保存");
+    if (targetId && context.baseVersionId && current(find(targetId))?.id !== context.baseVersionId) throw new Error("文件已有新版本，請重新開啟更新表單，確認版本後再儲存");
     return records.map(body => {
       const matches = documentLibrary.documents.filter(doc => !doc.archived && current(doc)?.sha256 === body.sha256);
       let doc = targetId ? find(targetId) : !context.forceNew && matches.length === 1 ? matches[0] : null;

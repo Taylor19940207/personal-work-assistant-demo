@@ -12,7 +12,7 @@
     const task = data.tasks.find(item => item.id === taskId);
     if (task) { task.history ||= []; task.history.unshift({ ...entry }); }
   };
-  function persist() { if (!saveWorkspaceData()) throw new Error("未能保存資料，變更尚未完成。請確認瀏覽器的儲存空間與權限。"); }
+  function persist() { if (!saveWorkspaceData()) throw new Error("變更尚未儲存。請檢查瀏覽器的儲存空間與權限，再試一次。"); }
   function install(state) {
     const definitions = state.projects.map(projectDefinition);
     topologyProjects.splice(0, topologyProjects.length, ...definitions);
@@ -86,10 +86,10 @@
     return new Promise((resolve, reject) => {
       const transaction = db.transaction("bodies", "readwrite");
       transaction.oncomplete = resolve;
-      transaction.onerror = () => reject(new Error("附件未保存成功，可能是本機空間不足；原有資料未被取代"));
-      transaction.onabort = () => reject(new Error("附件保存已取消，原有資料未被取代"));
+      transaction.onerror = () => reject(new Error("附件未儲存成功，可能是本機空間不足；原有資料未被取代"));
+      transaction.onabort = () => reject(new Error("已取消儲存附件，原有資料未被取代"));
       try { records.forEach(record => transaction.objectStore("bodies").add(record)); }
-      catch { transaction.abort(); reject(new Error("附件未保存成功，這批檔案已取消寫入")); }
+      catch { transaction.abort(); reject(new Error("附件未儲存成功，這批檔案已取消寫入")); }
     });
   }
   async function removeBodies(ids) {
@@ -137,7 +137,7 @@
     const data = workspaceData[projectId];
     if (projectId && !data) throw new Error("案件已不存在");
     if (!selected.length) return [];
-    if ((context.fileId || context.documentId) && selected.length !== 1) throw new Error("一個資料版本請選擇一個檔案");
+    if ((context.fileId || context.documentId) && selected.length !== 1) throw new Error("每個版本限選一個檔案");
     if (workspaceLoadError) throw new Error(workspaceLoadError);
     const records = [];
     for (const file of selected) records.push({ id: uid("blob"), name: file.name, type: file.type || "application/octet-stream", size: file.size, sha256: await hash(file), blob: file, createdAt: new Date().toISOString() });
@@ -176,8 +176,8 @@
     uploadContext = null;
     context.kind ||= evidenceTarget.kind || "project"; context.id ||= evidenceTarget.id;
     if (!selected.length) return;
-    showToast(`正在保存 ${selected.length} 份附件…`);
-    try { await storeFiles(selected, context); showToast(context.kind === "task" ? `已加入此工作，${selected.length} 份文件同步保存於文件庫` : `已加入此案件，${selected.length} 份文件同步保存於文件庫`); }
+    showToast(`正在儲存 ${selected.length} 份附件…`);
+    try { await storeFiles(selected, context); showToast(context.kind === "task" ? `已加入此工作，${selected.length} 份文件已存入文件庫` : `已加入此案件，${selected.length} 份文件已存入文件庫`); }
     catch (error) { showToast(error.message); }
     evidenceTarget = { kind: "project", id: null };
   };
@@ -187,14 +187,14 @@
   function fileActions(file, version = documentModel.current(file)) {
     if (version?.blobId) return `<button type="button" class="d-action" data-workspace-action="open-file" data-file="${e(file.id)}" data-version="${e(version.id)}">開啟</button><button type="button" class="d-action" data-workspace-action="download-file" data-file="${e(file.id)}" data-version="${e(version.id)}">下載</button>`;
     if (safeURL(version?.url)) return `<a href="${e(safeURL(version.url))}" target="_blank" rel="noopener noreferrer">開啟來源 ↗</a>`;
-    return `<small>只有檔名，尚未加入檔案</small>`;
+    return `<small>僅有檔名，尚無原檔</small>`;
   }
   let activePreview = null;
   async function accessFile(fileId, versionId, download = false, trigger = document.activeElement) {
     const data = workspaceData[uiState.projectId];
     const file = data?.files.find(item => item.id === fileId) || documentModel.find(fileId);
     const version = versionId ? file?.versions.find(item => item.id === versionId) : documentModel.current(file);
-    if (!version) throw new Error("指定版本不存在，沒有改開其他版本");
+    if (!version) throw new Error("找不到指定版本，請從完整備份還原");
     if (!version.blobId) throw new Error("這個版本只記了來源，尚未加入檔案");
     const route = location.href;
     const record = await readBody(version.blobId);
@@ -253,7 +253,7 @@
   }
   renderEvidenceItem = (file, data) => renderFile(file, data);
   renderProjectFiles = function(data) {
-    return `<div class="project-surface w-files-surface"><div class="surface-heading"><div><h2>文件與連結</h2><p>在這裡加入的文件直接歸入此案件，文件庫同步保存；也可選用其他案件已存的文件。</p></div><div class="surface-actions"><button type="button" class="secondary-action" data-doc-action="choose">從文件庫加入</button><button type="button" class="secondary-action" data-action="open-link">新增連結</button><button type="button" class="primary-action" data-action="choose-files">加入文件</button></div></div><button type="button" class="evidence-drop w-drop-zone" data-action="choose-files"><strong>拖入文件，或點擊選擇</strong><span>檔案留在本機瀏覽器，不會上傳到網路。</span></button><div class="evidence-list w-evidence-library">${data.files.map(file => renderFile(file, data)).join("") || `<p class="d-help">尚未加入附件或來源。</p>`}</div></div>`;
+    return `<div class="project-surface w-files-surface"><div class="surface-heading"><div><h2>文件與連結</h2><p>新增的文件會存入文件庫，並連結至本案件。</p></div><div class="surface-actions"><button type="button" class="secondary-action" data-doc-action="choose">從文件庫加入</button><button type="button" class="secondary-action" data-action="open-link">新增連結</button><button type="button" class="primary-action" data-action="choose-files">加入文件</button></div></div><button type="button" class="evidence-drop w-drop-zone" data-action="choose-files"><strong>拖入檔案或選擇檔案</strong><span>檔案留在本機瀏覽器，不會上傳到網路。</span></button><div class="evidence-list w-evidence-library">${data.files.map(file => renderFile(file, data)).join("") || `<p class="d-help">尚無文件或連結。</p>`}</div></div>`;
   };
 
   function bodyReferences(data, library = documentLibrary) {
@@ -439,7 +439,7 @@
   });
   const value = (values, key) => String(values.get(key) || "").trim();
   function newProjectDialog() {
-    display("建立新案件", "預設以案件名稱作為交付目標。",
+    display("建立案件", "預設以案件名稱作為交付目標。",
       field("案件名稱", "name", "", "text", true) + field("預計交付日（選填）", "due", "", "date") +
       '<details class="d-work-options"><summary>自訂交付目標與驗收標準</summary><div>' + field("交付目標", "goal") + field("驗收標準", "criteria", "", "textarea") + '</div></details>', "建立案件", values => {
         const project = createProject({ name: value(values, "name"), goal: value(values, "goal") || value(values, "name"), criteria: value(values, "criteria"), due: value(values, "due") });
@@ -451,8 +451,8 @@
     const archived = managerTab === "archived";
     const samplePage = location.protocol === "file:" && !location.pathname.includes("/dist/") ? "./dist/examples.html" : "./examples.html";
     const projects = topologyProjects.filter(project => (workspaceData[project.id].lifecycle === "archived") === archived);
-    display("案件與備份", "在這裡管理案件和備份。封存的案件可在「已封存」找到。",
-      `<div class="w-manager-tools">${button("＋ 建立案件", "new-project")}${window.exampleWorkspace ? '<a class="d-action" href="./index.html">回我的工作區</a>' : '<a class="d-action" href="'+samplePage+'" target="_blank" rel="noopener">開啟清單範例 ↗</a>'}${button(`目前案件 ${getPortfolioProjects().length}`, "active", `aria-pressed="${!archived}"`)}${button(`已封存 ${topologyProjects.length - getPortfolioProjects().length}`, "archived", `aria-pressed="${archived}"`)}</div><label>搜尋案件<input type="search" data-project-search placeholder="案件名稱或交付目標" autocomplete="off"></label><div class="w-project-list">${projects.map(project => `<div class="w-project-row" data-search="${e(`${project.name} ${workspaceData[project.id].goal.title || ""}`.toLowerCase())}"><button type="button" class="d-work-link" data-workspace-action="open-project" data-project="${e(project.id)}"><strong>${e(project.name)}</strong><small>${e(workspaceData[project.id].goal.title || project.name)} · ${e(getProjectSnapshot(project).state)}</small></button>${button(archived ? "還原" : "管理", archived ? "restore-project" : "manage-project", `data-project="${e(project.id)}"`)}</div>`).join("") || `<p class="d-help">${archived ? "沒有已封存案件" : "目前沒有未封存案件，可建立新案或從封存區還原。"}</p>`}<p class="d-help" data-project-search-empty hidden>沒有符合的案件，試試其他名稱。</p></div><p><a class="d-action" href="./glossary.html" target="_blank" rel="noopener">工作用語辭典 ↗</a></p><section class="w-backup"><h3>完整備份</h3><p class="d-help">備份包含案件、文件庫、各版原檔和文件履歷。外部連結只備份網址。</p><div class="d-actions">${button("匯出完整備份", "export")}${button("從備份匯入", "import")}${localStorage.getItem(undoKey) ? button("復原上次還原", "undo-import") : ""}</div><p class="d-help">資料存放在目前裝置的這個瀏覽器。清除瀏覽器資料前，請先匯出備份。</p></section>`);
+    display("案件與備份", "",
+      `<div class="w-manager-tools">${button("＋ 建立案件", "new-project")}${window.exampleWorkspace ? '<a class="d-action" href="./index.html">回我的工作區</a>' : '<a class="d-action" href="'+samplePage+'" target="_blank" rel="noopener">查看範例案件 ↗</a>'}${button(`目前案件 ${getPortfolioProjects().length}`, "active", `aria-pressed="${!archived}"`)}${button(`已封存 ${topologyProjects.length - getPortfolioProjects().length}`, "archived", `aria-pressed="${archived}"`)}</div><label>搜尋案件<input type="search" data-project-search placeholder="案件名稱或交付目標" autocomplete="off"></label><div class="w-project-list">${projects.map(project => `<div class="w-project-row" data-search="${e(`${project.name} ${workspaceData[project.id].goal.title || ""}`.toLowerCase())}"><button type="button" class="d-work-link" data-workspace-action="open-project" data-project="${e(project.id)}"><strong>${e(project.name)}</strong><small>${e(workspaceData[project.id].goal.title || project.name)} · ${e(getProjectSnapshot(project).state)}</small></button>${button(archived ? "還原" : "管理", archived ? "restore-project" : "manage-project", `data-project="${e(project.id)}"`)}</div>`).join("") || `<p class="d-help">${archived ? "沒有已封存案件" : "目前沒有未封存案件，可建立新案或從封存區還原。"}</p>`}<p class="d-help" data-project-search-empty hidden>查無符合的案件，請更換關鍵字。</p></div><p><a class="d-action" href="./glossary.html" target="_blank" rel="noopener">工作用語辭典 ↗</a></p><section class="w-backup"><h3>完整備份</h3><p class="d-help">備份包含案件、文件庫、各版原檔和文件履歷。外部連結只備份網址。</p><div class="d-actions">${button("匯出完整備份", "export")}${button("從備份匯入", "import")}${localStorage.getItem(undoKey) ? button("復原上次還原", "undo-import") : ""}</div><p class="d-help">資料存放在目前裝置的這個瀏覽器。清除瀏覽器資料前，請先匯出備份。</p></section>`);
   }
   dialog.addEventListener("input", event => {
     if (!event.target.matches("[data-project-search]")) return;
@@ -463,8 +463,8 @@
   });
   function manageProject(id) {
     const project = getProject(id), data = workspaceData[id]; if (!project || !data) return;
-    display("管理案件", "案件名稱與交付目標可以不同。改名不會改動工作、資料關聯或交付紀錄。",
-      field("案件名稱", "name", project.name, "text", true) + `<div class="w-lifecycle"><p class="d-help">${data.lifecycle === "archived" ? "此案件已封存，還原後會回到封存前的狀態。" : "暫時不需追蹤時可以封存；這不代表已完成交付。"}</p>${button(data.lifecycle === "archived" ? "還原案件" : "封存案件", data.lifecycle === "archived" ? "restore-project" : "archive-project", `data-project="${e(id)}"`)}</div>`, "儲存名稱", values => {
+    display("管理案件", "修改案件名稱，或調整封存狀態。",
+      field("案件名稱", "name", project.name, "text", true) + `<div class="w-lifecycle"><p class="d-help">${data.lifecycle === "archived" ? "此案件已封存，還原後會回到封存前的狀態。" : "封存後，案件會自日常工作清單移至封存區。"}</p>${button(data.lifecycle === "archived" ? "還原案件" : "封存案件", data.lifecycle === "archived" ? "restore-project" : "archive-project", `data-project="${e(id)}"`)}</div>`, "儲存名稱", values => {
         const previous = renameProject(id, value(values, "name"));
         showToast("案件名稱已更新", { label: "復原改名", run: () => { renameProject(id, previous); showToast("已復原案件名稱"); } });
       });
@@ -506,12 +506,12 @@
         const file = workspaceData[id]?.files.find(item => item.id === control.dataset.file);
         if (!file) throw new Error("找不到資料");
         if (window.documentUI) return documentUI.update(documentModel.find(file.documentId));
-        return display("加入檔案新版本", `為「${e(file.name)}」加入新版本。原版本及已送出紀錄保持原樣。`, `<label>新版本檔案<input type="file" name="versionFile" required></label>` + field("這一版改了什麼", "note", "", "textarea", true), "儲存新版本", async values => {
+        return display("加入檔案新版本", `為「${e(file.name)}」加入新版本。原版本及已送出紀錄保持原樣。`, `<label>新版本檔案<input type="file" name="versionFile" required></label>` + field("版本變更說明", "note", "", "textarea", true), "儲存新版本", async values => {
           const note = value(values, "note"); if (!note) throw new Error("請留下版本變更說明");
           const selected = values.get("versionFile");
           if (!(selected instanceof File) || !selected.name) throw new Error("請選擇新版本檔案");
           await storeFiles([selected], { projectId: id, fileId: file.id, kind: "project", note });
-          showToast("附件新版本已保存，先前送出的版本仍然保留");
+          showToast("已儲存新版附件，先前送出的版本仍然保留");
         });
       }
     } catch (error) { showToast(error.message); }
@@ -558,7 +558,7 @@
     if (!getPortfolioProjects().length) {
       topologyLayout = { width: 800, height: 380, projectY: new Map() };
       mapStage.style.width = "800px"; mapStage.style.height = "380px";
-      mapStage.innerHTML = `<div class="w-empty-map"><h2>開始一個新的交付目標</h2><p>建立案件，或從封存區還原既有案件。</p>${button("建立案件", "new-project")}${button("案件管理", "manager")}</div>`;
+      mapStage.innerHTML = `<div class="w-empty-map"><h2>尚無進行中的案件</h2><p>建立案件，或從封存區還原既有案件。</p>${button("建立案件", "new-project")}${button("案件管理", "manager")}</div>`;
     }
   };
   const controls = document.createElement("div"); controls.className = "w-overview-actions";

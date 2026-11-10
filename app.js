@@ -10,7 +10,7 @@ const topologyProjects = [
     ]
   },
   {
-    id: "launch-film", name: "產品發布短片", color: "#b7a9ee", state: "推進中", tone: "success", pattern: "dash", y: 355, progress: 44, deadline: "11/05 最終交付",
+    id: "launch-film", name: "產品發布短片", color: "#b7a9ee", state: "進行中", tone: "success", pattern: "dash", y: 355, progress: 44, deadline: "11/05 最終交付",
     nodes: [
       { id: "lf-script", x: 300, type: "decision", date: "10/19", label: "60 秒腳本鎖定", summary: "文字、鏡頭與產品訊息已對齊。", action: "合併三版腳本並壓縮旁白。", decision: "用使用場景開場，不從產品特寫開始。", next: "進入動態分鏡。", evidence: "script-locked.pdf" },
       { id: "lf-board", x: 555, type: "event", date: "10/24", label: "動態分鏡完成 12 / 18", summary: "前半段節奏成立，後半段資訊密度偏高。", action: "完成主要轉場，標註仍需測試的鏡頭。", decision: "鏡頭 08 改用空間連續轉場。", next: "補齊後六鏡與配樂節點。", evidence: "animatic-v1.mp4" },
@@ -46,7 +46,7 @@ let workspaceLoadError = "";
 function projectDefinition(source) {
   if (!source || typeof source.id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(source.id) || ["__proto__", "prototype", "constructor"].includes(source.id) || typeof source.name !== "string" || !source.name.trim()) throw new Error("專案定義不完整");
   const original = topologyProjects.find(project => project.id === source.id);
-  return { id: source.id, name: source.name.trim(), color: /^#[0-9a-f]{6}$/i.test(source.color || "") ? source.color : "#83e8d3", state: "推進中", tone: "success", pattern: "solid", y: 170, progress: 0, deadline: "尚未排定", nodes: original?.nodes || [], isSample: source.isSample === true };
+  return { id: source.id, name: source.name.trim(), color: /^#[0-9a-f]{6}$/i.test(source.color || "") ? source.color : "#83e8d3", state: "進行中", tone: "success", pattern: "solid", y: 170, progress: 0, deadline: "尚未排定", nodes: original?.nodes || [], isSample: source.isSample === true };
 }
 function projectRegistry() { return topologyProjects.map(({ id, name, color, isSample }) => ({ id, name, color, isSample: isSample !== false })); }
 function emptyWorkspaceData() { return { lifecycle: "active", deadlineDate: "", deadlineTime: "", deadlineLabel: "交付目標", tasks: [], issues: [], decisions: [], files: [], activity: [], timeline: [] }; }
@@ -346,54 +346,54 @@ const capturePresets = {
   task: {
     kicker: "工作",
     title: "新增工作",
-    intro: "直接記下要完成的事，時間與優先順序可以現在設定，也可以稍後調整。",
-    titleLabel: "要完成什麼",
+    intro: "期限與優先順序可稍後設定。",
+    titleLabel: "工作名稱",
     titlePlaceholder: "例如：整理客戶檢視版本",
     detailLabel: "完成標準或備註",
-    detailPlaceholder: "完成到什麼程度才算結束？",
-    detailHelp: "選填。寫清楚交付條件，之後移動工作時會更容易判斷。",
+    detailPlaceholder: "例如：客戶已核對並確認定稿",
+    detailHelp: "",
     submit: "新增工作"
   },
   issue: {
     kicker: "問題",
     title: "記錄問題",
-    intro: "寫下遇到的問題，以及目前打算怎麼處理。",
-    titleLabel: "問題是什麼",
+    intro: "",
+    titleLabel: "問題名稱",
     titlePlaceholder: "例如：商品攝影仍缺 4 張",
-    detailLabel: "發生了什麼",
+    detailLabel: "問題說明",
     detailPlaceholder: "描述影響、阻礙或已知原因",
-    detailHelp: "問題會維持未解狀態，直到你填寫處理結果並關閉它。",
+    detailHelp: "",
     followupLabel: "目前處理方式或下一步（選填）",
     followupPlaceholder: "例如：先用灰階佔位，10/27 前仍未收到就縮小檢視範圍",
-    followupHelp: "已有暫定做法，可以先寫在這裡。",
+    followupHelp: "",
     submit: "記錄問題"
   },
   decision: {
     kicker: "決策",
-    title: "針對問題記錄決策",
-    intro: "選擇要處理的問題，再記下決定與原因。",
-    titleLabel: "決定了什麼",
+    title: "記錄決策",
+    intro: "請選擇這項決策所對應的問題。",
+    titleLabel: "決策內容",
     titlePlaceholder: "例如：首頁保留案例入口",
-    detailLabel: "為什麼這樣決定",
+    detailLabel: "決策理由",
     detailPlaceholder: "記錄考量、被捨棄的方案或判斷依據",
-    detailHelp: "理由會與原問題一起保留，避免之後只剩結論。",
+    detailHelp: "",
     followupLabel: "影響與下一步（選填）",
     followupPlaceholder: "哪些工作或交付需要跟著調整？",
-    followupHelp: "選填。只記錄會改變後續工作的影響。",
+    followupHelp: "",
     submit: "記錄決策"
   },
   note: {
     kicker: "工作進度",
     title: "新增進度紀錄",
-    intro: "寫下做了什麼，之後可在案件紀錄查看。",
-    titleLabel: "這次推進了什麼",
+    intro: "",
+    titleLabel: "進度摘要",
     titlePlaceholder: "例如：完成首頁手機版檢查",
-    detailLabel: "做了什麼與結果",
-    detailPlaceholder: "記錄完成內容、觀察或產出",
-    detailHelp: "避免只寫狀態，優先記錄實際改變了什麼。",
+    detailLabel: "辦理情形",
+    detailPlaceholder: "例如：已核對手機版首頁，兩處文案待修正",
+    detailHelp: "",
     followupLabel: "下一步（選填）",
-    followupPlaceholder: "接下來要推進什麼？",
-    followupHelp: "選填。若沒有明確下一步，可以留空。",
+    followupPlaceholder: "例如：將修訂稿交給客戶確認",
+    followupHelp: "",
     submit: "新增紀錄"
   }
 };
@@ -619,7 +619,7 @@ function applyTopologyDensityCap(nodes, project) {
       label: `其餘 ${hidden.length} 項`,
       summary: `這個日期共有 ${group.length} 個分支，圖上先顯示重點。`,
       action: "點開彙總節點可逐筆查看完整內容。",
-      decision: "宏觀畫布每個日期最多顯示八個分支位置。",
+      decision: "同日紀錄已合併顯示。",
       next: "選擇其中一筆紀錄，或進入案件工作區處理。",
       evidence: "所有項目都可在完整紀錄查看",
       x: Number(anchor.branchAnchorX) || Number(anchor.x),
@@ -729,7 +729,7 @@ function getProjectNodes(project, includeFullTimeline = false) {
       date: topologyDateLabel(data.deadlineDate),
       label: data.deadlineLabel || "案件期限",
       summary: "由案件期限設定建立的里程碑。",
-      action: "依期限推進案件工作。",
+      action: "請在案件期限前完成必要工作。",
       decision: "期限可在案件工作區調整。",
       next: "完成期限前的必要工作與確認。",
       evidence: "案件期限設定"
@@ -853,14 +853,14 @@ function getProjectSnapshot(project) {
   const hasNearTask = taskDeadlines.some(item => ["today", "soon"].includes(item.state));
   const blockedTasks = activeTasks.filter(task => getTaskBlockers(data, task).length);
   const isComplete = lifecycle === "completed" || lifecycle === "active" && progress === 100 && openIssues.length === 0;
-  let state = "推進中";
+  let state = "進行中";
   let tone = project.tone;
   if (lifecycle === "paused") { state = "暫停"; tone = "muted"; }
   else if (lifecycle === "archived") { state = "已封存"; tone = "muted"; }
   else if (isComplete) { state = "已完成"; tone = "success"; }
   else if (deadline.state === "overdue") { state = "案件逾期"; tone = "danger"; }
   else if (hasOverdueTask) { state = "有逾期工作"; tone = "danger"; }
-  else if (blockedTasks.length) { state = "有工作等待前置"; tone = "warning"; }
+  else if (blockedTasks.length) { state = "有工作待前置事項完成"; tone = "warning"; }
   else if (openIssues.length) { state = "有待解決問題"; tone = "warning"; }
   else if (["today", "soon"].includes(deadline.state) || hasNearTask) { state = "期限接近"; tone = "warning"; }
   else if (!activeTasks.length) state = project.state;
@@ -1235,7 +1235,7 @@ function openClusterInspector(project, cluster) {
     <p class="inspector-project">${escapeHTML(project.name)} / 日期群組</p>
     <h2 class="inspector-title">${escapeHTML(cluster.date)} 的完整內容</h2>
     <div class="inspector-meta"><span>${clusteredNodes.length} 個項目</span><span>${cluster.clusterHiddenCount || 0} 個已收合</span></div>
-    <section class="inspector-section"><h3>為什麼收合</h3><p>這一天有多筆紀錄，可在這裡逐項查看。</p></section>
+    <section class="inspector-section"><h3>同日紀錄</h3><p>請選擇要查看的紀錄。</p></section>
     <div class="attention-list cluster-list">${clusteredNodes.map(node => `
       <button class="attention-row cluster-row" type="button" data-node-id="${escapeHTML(node.id)}">
         <span class="attention-kind">${node.type === "issue" ? "問題" : node.type === "task" ? "工作" : node.type === "decision" ? "決策" : "記錄"}</span>
@@ -1274,14 +1274,14 @@ function openInspector(nodeId) {
     <p class="inspector-project">${escapeHTML(project.name)} / ${snapshot.progress}%</p>
     <h2 class="inspector-title">${escapeHTML(node.label)}</h2>
     <div class="inspector-meta"><span>${escapeHTML(node.date)}</span><span class="${node.type === "issue" ? "is-issue" : ""}">${node.type === "issue" ? "問題節點" : node.type === "decision" ? "決策節點" : node.type === "milestone" ? "里程碑" : "工作事件"}</span>${node.current ? "<span>目前位置</span>" : ""}</div>
-    <section class="inspector-section"><h3>這裡發生了什麼</h3><p class="strong-copy">${escapeHTML(node.summary)}</p></section>
-    <section class="inspector-section"><h3>做了什麼</h3><p>${escapeHTML(node.action)}</p></section>
+    <section class="inspector-section"><h3>事件摘要</h3><p class="strong-copy">${escapeHTML(node.summary)}</p></section>
+    <section class="inspector-section"><h3>辦理情形</h3><p>${escapeHTML(node.action)}</p></section>
     ${issueRecord ? `<section class="inspector-section"><h3>問題範圍</h3><p>${escapeHTML(issueContextLabel(workspaceData[project.id], issueRecord))}</p></section>` : ""}
     ${decisionIssue ? `<section class="inspector-section"><h3>回應的問題</h3><p>${escapeHTML(decisionIssue.title)}</p></section>` : ""}
     <section class="inspector-section"><h3>${issueRecord?.resolution ? "處理結果" : "當時的決定"}</h3><p>${escapeHTML(nodeDecision)}</p></section>
     <section class="inspector-section"><h3>下一步</h3><p>${escapeHTML(nodeNext)}</p></section>
     <section class="inspector-section"><h3>相關資料</h3><p>${escapeHTML(node.evidence)}</p></section>
-    <div class="inspector-actions"><button type="button" data-focus-project="${project.id}">只看這個案件</button>${issueTask ? `<button type="button" data-open-project-tab="board" data-project-id="${project.id}" data-record-id="${escapeHTML(issueTask.id)}">相關工作</button>` : ""}${relatedEvidence.length ? `<button type="button" data-open-project-tab="files" data-project-id="${project.id}" data-record-id="${escapeHTML(relatedEvidence[0].id)}">相關資料 ${relatedEvidence.length}</button>` : ""}<button class="primary-action" type="button" ${issueRecord || decisionIssue ? `data-open-project-tab="records" data-project-id="${project.id}" data-record-id="${escapeHTML(issueRecord?.id || decisionIssue.id)}"` : taskRecord ? `data-open-project-tab="board" data-project-id="${project.id}" data-record-id="${escapeHTML(taskRecord.id)}"` : `data-open-project="${project.id}"`}>${issueRecord || decisionIssue ? "開啟處理脈絡" : taskRecord ? "開啟這項工作" : "進入案件工作區"}</button></div>`;
+    <div class="inspector-actions"><button type="button" data-focus-project="${project.id}">只看這個案件</button>${issueTask ? `<button type="button" data-open-project-tab="board" data-project-id="${project.id}" data-record-id="${escapeHTML(issueTask.id)}">相關工作</button>` : ""}${relatedEvidence.length ? `<button type="button" data-open-project-tab="files" data-project-id="${project.id}" data-record-id="${escapeHTML(relatedEvidence[0].id)}">相關資料 ${relatedEvidence.length}</button>` : ""}<button class="primary-action" type="button" ${issueRecord || decisionIssue ? `data-open-project-tab="records" data-project-id="${project.id}" data-record-id="${escapeHTML(issueRecord?.id || decisionIssue.id)}"` : taskRecord ? `data-open-project-tab="board" data-project-id="${project.id}" data-record-id="${escapeHTML(taskRecord.id)}"` : `data-open-project="${project.id}"`}>${issueRecord || decisionIssue ? "查看處理紀錄" : taskRecord ? "開啟這項工作" : "進入案件工作區"}</button></div>`;
   inspector.classList.add("is-open");
   inspector.setAttribute("aria-hidden", "false");
   inspector.inert = false;
@@ -1342,7 +1342,7 @@ function getAttentionItems() {
       if (due.state === "overdue") { priority = 0; kind = "逾期"; }
       else if (["today", "soon"].includes(due.state)) { priority = 1; kind = "期限"; }
       else if (task.status === "review") { priority = reviewDue?.state === "overdue" ? 0 : 1; kind = reviewDue?.state === "overdue" ? "確認逾期" : "待確認"; }
-      else if (blockers.length) { priority = 1; kind = "等待前置"; }
+      else if (blockers.length) { priority = 1; kind = "等待前置工作完成"; }
       else if (task.priority === "high") { priority = 1; kind = "高優先"; }
       else if (task.status === "doing") { priority = 2; kind = "進行中"; }
       if (priority === null) return;
@@ -1401,7 +1401,7 @@ function openProjectPicker(purpose = "focus") {
   }).join("");
   inspectorContent.innerHTML = `
     <p class="inspector-project">${choosingFocus ? "查看案件" : "案件紀錄"}</p>
-    <h2 class="inspector-title">${choosingFocus ? "要看哪個案件？" : "要記錄到哪一個案件？"}</h2>
+    <h2 class="inspector-title">${choosingFocus ? "選擇案件" : "選擇紀錄所屬案件"}</h2>
     <section class="inspector-section"><p>${choosingFocus ? "選擇要單獨查看的案件。" : "選擇後會進入該案件，並直接開啟新增紀錄。"}</p></section>
     <div class="attention-list">${rows}</div>
     <div class="inspector-actions">${choosingFocus && uiState.focusProjectId ? `<button type="button" data-action="clear-focus">顯示全部案件</button>` : ""}<button type="button" data-action="close-inspector">取消</button></div>`;
@@ -1686,15 +1686,15 @@ function renderProjectRoom() {
 
   projectRoomHeader.innerHTML = `
     <div class="project-heading-main">
-      <button class="project-back" type="button" data-action="leave-project" aria-label="返回拓樸圖">←</button>
+      <button class="project-back" type="button" data-action="leave-project" aria-label="返回案件列表">←</button>
       <div class="project-heading-copy">
-        <p class="project-breadcrumb">拓樸圖 / 案件工作區 / ${escapeHTML(snapshot.state)}</p>
+        <p class="project-breadcrumb">${uiState.view === "mine" ? "我的工作" : uiState.view === "list" ? "時間軸" : "拓樸圖"} / 案件工作區</p>
         <h1 tabindex="-1">${escapeHTML(project.name)}</h1>
         <p>目前：${escapeHTML(snapshot.currentTask?.title || currentNode.label)} · 下一期限 ${escapeHTML(snapshot.deadline.display)}</p>
       </div>
     </div>
     <div class="project-heading-status" style="--project-color:${project.color}">
-      <div class="project-status-line"><span>${escapeHTML(snapshot.state)} · ${openIssues} 個待解決問題</span><strong class="mono">${snapshot.progress}%</strong></div>
+      <div class="project-status-line"><span>${escapeHTML(snapshot.state)}${openIssues ? " · " + openIssues + " 個待解決問題" : ""}</span><strong class="mono">${snapshot.progress}%</strong></div>
       <div class="project-progress-track"><span style="width:${snapshot.progress}%"></span></div>
       <div class="project-deadline-control" data-state="${snapshot.deadline.state}">
         <span><strong>${escapeHTML(snapshot.deadline.short)}</strong> · ${escapeHTML(snapshot.deadline.display)}</span>
@@ -1720,8 +1720,8 @@ function renderProjectOverview(project, data, currentNode) {
   const deadline = getProjectDeadline(project);
   return `<div class="project-surface">
     <div class="surface-heading">
-      <div><h2>案件現況</h2><p>宏觀節點落到這裡後，才進行實際工作與留痕。</p></div>
-      <div class="surface-actions"><button class="secondary-action" type="button" data-project-tab="board">打開工作板</button><button class="primary-action" type="button" data-action="open-capture" data-capture-kind="task">新增工作</button></div>
+      <div><h2>案件現況</h2><p></p></div>
+      <div class="surface-actions"><button class="secondary-action" type="button" data-project-tab="board">開啟工作板</button><button class="primary-action" type="button" data-action="open-capture" data-capture-kind="task">新增工作</button></div>
     </div>
     <div class="metric-strip">
       <div class="metric-cell"><strong>${data.tasks.length - completed}</strong><span>未完成工作</span></div>
@@ -1730,11 +1730,11 @@ function renderProjectOverview(project, data, currentNode) {
     </div>
     <div class="project-overview">
       <div>
-        <section class="overview-block"><h3>現在正在發生什麼</h3><p class="overview-current">${escapeHTML(currentNode.summary)}</p><p class="overview-next"><strong>下一步：</strong>${escapeHTML(currentNode.next)}</p></section>
+        <section class="overview-block"><h3>案件進度</h3><p class="overview-current">${escapeHTML(currentNode.summary)}</p><p class="overview-next"><strong>下一步：</strong>${escapeHTML(currentNode.next)}</p></section>
         <section class="overview-block"><h3>最近的案件紀錄</h3><div class="compact-log">${data.activity.slice(0, 5).map(item => renderCompactRow(item)).join("")}</div></section>
       </div>
       <div>
-        <section class="overview-block"><h3>需要處理的問題</h3>${openIssues.length ? openIssues.map(issue => `<button class="compact-row compact-row-button is-issue" type="button" data-open-project-tab="records" data-project-id="${escapeHTML(project.id)}" data-record-id="${escapeHTML(issue.id)}"><time datetime="${escapeHTML(normalizeDateValue(issue.date, seedYear))}">${escapeHTML(displayDateValue(issue.date))}</time><strong>${escapeHTML(issue.title)}<em>${escapeHTML(issueContextLabel(data, issue))}</em></strong><small>開啟處理</small></button>`).join("") : `<div class="empty-state">目前沒有待解決問題</div>`}</section>
+        <section class="overview-block"><h3>待解決問題</h3>${openIssues.length ? openIssues.map(issue => `<button class="compact-row compact-row-button is-issue" type="button" data-open-project-tab="records" data-project-id="${escapeHTML(project.id)}" data-record-id="${escapeHTML(issue.id)}"><time datetime="${escapeHTML(normalizeDateValue(issue.date, seedYear))}">${escapeHTML(displayDateValue(issue.date))}</time><strong>${escapeHTML(issue.title)}<em>${escapeHTML(issueContextLabel(data, issue))}</em></strong><small>開啟處理</small></button>`).join("") : `<div class="empty-state">目前沒有待解決問題</div>`}</section>
         <section class="overview-block"><h3>案件路徑</h3><div class="compact-log">${getProjectNodes(project).filter(node => node.semanticMain).map(node => `<div class="compact-row"><time>${escapeHTML(node.date)}</time><strong>${escapeHTML(node.label)}</strong><small>${node.current ? "目前" : node.type === "milestone" ? "里程碑" : "節點"}</small></div>`).join("")}</div></section>
       </div>
     </div>
@@ -1791,7 +1791,7 @@ function renderTaskCard(task, data) {
     ${task.review?.person || task.review?.request ? `<div class="task-completion"><span>${task.status === "review" ? "等待確認" : "確認資訊"} · ${escapeHTML(task.review.person || "尚未指定")}</span><p>${escapeHTML(task.review.request || "尚未填寫確認內容")}</p>${task.review.expectedDate ? `<p>預計回覆 ${escapeHTML(formatDueValue(task.review.expectedDate))} · ${escapeHTML(getDueMeta(task.review.expectedDate, "", task.status === "done").short)}</p>` : ""}${task.review.reply ? `<p>最新回覆：${escapeHTML(task.review.reply)}</p>` : ""}</div>` : ""}
     <button class="task-schedule" type="button" data-edit-work-flow="${escapeHTML(task.id)}">${task.status === "review" ? "更新確認／回覆" : "前置工作與確認設定"}</button>
     <div class="task-due" data-state="${due.state}"><time>期限 ${escapeHTML(due.display)}</time><strong>${escapeHTML(due.short)}</strong></div>
-    <div class="task-linked-state"><button type="button" ${openIssueCount ? `data-open-project-tab="records" data-project-id="${escapeHTML(uiState.projectId)}" data-record-id="${escapeHTML(openTaskIssues[0].id)}"` : `data-report-task-issue="${escapeHTML(task.id)}"`}>${openIssueCount ? `${openIssueCount} 個待解決問題` : "回報問題"}</button>${evidenceCount ? `<button type="button" data-open-project-tab="files" data-project-id="${escapeHTML(uiState.projectId)}" data-record-id="${escapeHTML(taskEvidence[0].id)}">${evidenceCount} 份資料</button>` : ""}<button type="button" data-add-evidence-for="${escapeHTML(task.id)}" data-evidence-kind="task">加入文件</button><button type="button" data-add-link-for="${escapeHTML(task.id)}" data-link-kind="task">加連結</button></div>
+    <div class="task-linked-state"><button type="button" ${openIssueCount ? `data-open-project-tab="records" data-project-id="${escapeHTML(uiState.projectId)}" data-record-id="${escapeHTML(openTaskIssues[0].id)}"` : `data-report-task-issue="${escapeHTML(task.id)}"`}>${openIssueCount ? `${openIssueCount} 個待解決問題` : "回報問題"}</button>${evidenceCount ? `<button type="button" data-open-project-tab="files" data-project-id="${escapeHTML(uiState.projectId)}" data-record-id="${escapeHTML(taskEvidence[0].id)}">${evidenceCount} 份資料</button>` : ""}<button type="button" data-add-evidence-for="${escapeHTML(task.id)}" data-evidence-kind="task">加入文件</button><button type="button" data-add-link-for="${escapeHTML(task.id)}" data-link-kind="task">新增連結</button></div>
     <div class="task-meta"><button class="task-schedule" type="button" data-edit-task-schedule="${escapeHTML(task.id)}">調整排程 · ${escapeHTML(priorityLabel(task.priority))}</button><label class="visually-hidden" for="move-${escapeHTML(task.id)}">移動 ${escapeHTML(task.title)}</label><select id="move-${escapeHTML(task.id)}" class="task-move" data-move-task="${escapeHTML(task.id)}">${boardColumns.map(column => `<option value="${column.id}" ${task.status === column.id ? "selected" : ""}>移到 ${column.label}</option>`).join("")}</select></div>
   </article>`;
 }
@@ -1811,27 +1811,27 @@ function renderProjectRecords(data) {
     return `<section class="issue-thread">
       ${renderRecordRow({ ...issue, kind: "issue", context: issueContextLabel(data, issue), evidenceCount: issueEvidence.length, evidenceFirstId: issueEvidence[0]?.id || "", nextTaskTitle: issue.nextTaskId ? data.tasks.find(task => task.id === issue.nextTaskId)?.title || "" : "" }, { source: "record", deletable: true })}
       <div class="issue-decisions">
-        <div class="issue-decisions-heading"><div><span>決策</span><small>${linkedDecisions.length ? `${linkedDecisions.length} 筆已連結` : "尚未記錄決策"}</small></div><button class="context-action inline-context-action" type="button" data-decision-for="${escapeHTML(issue.id)}">針對此問題記錄決策</button></div>
+        <div class="issue-decisions-heading"><div><span>決策</span><small>${linkedDecisions.length ? `${linkedDecisions.length} 筆已連結` : "尚未記錄決策"}</small></div><button class="context-action inline-context-action" type="button" data-decision-for="${escapeHTML(issue.id)}">記錄決策</button></div>
         ${linkedDecisions.length ? linkedDecisions.map(decision => {
           const nextTask = decision.nextTaskId ? data.tasks.find(task => task.id === decision.nextTaskId) : null;
           return renderRecordRow({ ...decision, kind: "decision", nextTaskTitle: nextTask?.title || "" }, { source: "record", deletable: true, nested: true });
-        }).join("") : `<p class="issue-decisions-empty">若需要保留選擇與理由，直接從這個問題往下記錄。</p>`}
+        }).join("") : ""}
       </div>
     </section>`;
   }).join("");
   const legacyDecisions = data.decisions.filter(decision => !linkedDecisionIds.has(decision.id));
   return `<div class="project-surface">
-    <div class="surface-heading"><div><h2>問題與決策</h2><p>打開問題可查看決策、原因和結果。</p></div><div class="surface-actions"><button class="primary-action" type="button" data-action="open-capture" data-capture-kind="issue">記錄問題</button><button class="secondary-action" type="button" data-action="open-capture" data-capture-kind="decision" ${data.issues.length ? "" : "disabled"}>記錄決策</button></div></div>
+    <div class="surface-heading"><div><h2>問題與決策</h2></div><div class="surface-actions"><button class="primary-action" type="button" data-action="open-capture" data-capture-kind="issue">記錄問題</button><button class="secondary-action" type="button" data-action="open-capture" data-capture-kind="decision" ${data.issues.length ? "" : "disabled"}>記錄決策</button></div></div>
     <div class="records-layout">
-      <div class="issue-thread-list">${issueThreads || `<div class="empty-state">還沒有問題。記下問題後，就可以在問題下記下決策。</div>`}${legacyDecisions.length ? `<section class="legacy-decisions"><div class="legacy-decisions-heading"><span>尚未連結的既有決策</span><small>這些是舊資料；新的決策必須連到問題。</small></div>${legacyDecisions.map(item => renderRecordRow({ ...item, kind: "decision" }, { source: "record", deletable: true })).join("")}</section>` : ""}</div>
-      <aside class="project-context-rail"><section class="context-section"><h3>記錄原則</h3><p>先建立問題，再在該問題下記錄決策。完成處理時把實際結果補回原問題，不需要重建另一筆紀錄。</p></section><section class="context-section"><h3>目前統計</h3><p>${data.issues.filter(item => item.status === "open").length} 個待解決問題<br>${data.decisions.filter(item => item.issueId).length} 筆已記錄的決策${legacyDecisions.length ? `<br>${legacyDecisions.length} 個舊決策尚未連結` : ""}</p></section></aside>
+      <div class="issue-thread-list">${issueThreads || `<div class="empty-state">尚無問題紀錄。</div>`}${legacyDecisions.length ? `<section class="legacy-decisions"><div class="legacy-decisions-heading"><span>未指定問題的決策</span><small>這些決策未記錄所屬問題。</small></div>${legacyDecisions.map(item => renderRecordRow({ ...item, kind: "decision" }, { source: "record", deletable: true })).join("")}</section>` : ""}</div>
+      <aside class="project-context-rail"><section class="context-section"><h3>案件統計</h3><p>${data.issues.filter(item => item.status === "open").length} 個待解決問題<br>${data.decisions.filter(item => item.issueId).length} 筆已記錄的決策${legacyDecisions.length ? `<br>${legacyDecisions.length} 個舊決策尚未連結` : ""}</p></section></aside>
     </div>
   </div>`;
 }
 
 function renderRecordRow(item, { source = "activity", deletable = false, nested = false } = {}) {
   const stateAction = source === "record" && item.kind === "issue" ? `<button class="record-state" type="button" data-toggle-issue="${escapeHTML(item.id)}">${item.status === "open" ? "完成處理" : "重新開啟"}</button>` : "";
-  const evidenceAction = source === "record" && item.kind === "issue" ? `${item.evidenceCount ? `<button class="record-state" type="button" data-open-project-tab="files" data-project-id="${escapeHTML(uiState.projectId)}" data-record-id="${escapeHTML(item.evidenceFirstId)}">${item.evidenceCount} 份資料</button>` : ""}<button class="record-state" type="button" data-add-evidence-for="${escapeHTML(item.id)}" data-evidence-kind="issue">加入文件</button><button class="record-state" type="button" data-add-link-for="${escapeHTML(item.id)}" data-link-kind="issue">加連結</button>` : "";
+  const evidenceAction = source === "record" && item.kind === "issue" ? `${item.evidenceCount ? `<button class="record-state" type="button" data-open-project-tab="files" data-project-id="${escapeHTML(uiState.projectId)}" data-record-id="${escapeHTML(item.evidenceFirstId)}">${item.evidenceCount} 份資料</button>` : ""}<button class="record-state" type="button" data-add-evidence-for="${escapeHTML(item.id)}" data-evidence-kind="issue">加入文件</button><button class="record-state" type="button" data-add-link-for="${escapeHTML(item.id)}" data-link-kind="issue">新增連結</button>` : "";
   const deleteAction = deletable ? `<button class="record-delete" type="button" data-delete-record="${escapeHTML(item.id)}" data-delete-kind="${escapeHTML(item.kind)}" data-delete-source="${source}" aria-label="刪除紀錄：${escapeHTML(item.title)}">刪除</button>` : "";
   const actions = stateAction || evidenceAction || deleteAction ? `<div class="record-actions">${stateAction}${evidenceAction}${deleteAction}</div>` : "";
   const resolution = item.resolution ? `<div class="record-resolution"><span>處理結果</span><p>${escapeHTML(item.resolution)}</p></div>` : "";
@@ -1843,7 +1843,7 @@ function renderRecordRow(item, { source = "activity", deletable = false, nested 
 
 function renderEvidenceItem(file, data) {
   const safeUrl = file.source === "link" ? normalizeExternalUrl(file.url) : "";
-  const sourceLabel = file.source === "link" ? safeUrl ? "外部連結" : "連結無效" : file.source === "local" ? "本機加入" : "節點證據";
+  const sourceLabel = file.source === "link" ? safeUrl ? "外部連結" : "連結無效" : file.source === "local" ? "本機加入" : "相關文件";
   const title = safeUrl
     ? `<a class="evidence-title" href="${escapeHTML(safeUrl)}" target="_blank" rel="noopener noreferrer">${escapeHTML(file.name)}</a>`
     : `<strong>${escapeHTML(file.name)}</strong>`;
@@ -1864,7 +1864,7 @@ function renderProjectFiles(data) {
 function renderProjectActivity(data) {
   return `<div class="project-surface">
     <div class="surface-heading"><div><h2>完整紀錄</h2><p>依日期查看工作進度、問題、決策和文件。</p></div><div class="surface-actions"><button class="primary-action" type="button" data-action="open-capture" data-capture-kind="note">新增進度紀錄</button></div></div>
-    <div class="record-list">${data.activity.map(item => renderRecordRow(item, { source: "activity", deletable: /^activity-(issue|decision|note)-\d+$/.test(item.id) })).join("") || `<div class="empty-state">尚未有紀錄</div>`}</div>
+    <div class="record-list">${data.activity.map(item => renderRecordRow(item, { source: "activity", deletable: /^activity-(issue|decision|note)-\d+$/.test(item.id) })).join("") || `<div class="empty-state">尚無工作紀錄</div>`}</div>
   </div>`;
 }
 
@@ -2040,7 +2040,7 @@ function moveTask(taskId, nextStatus) {
   }
   if (nextStatus !== "queue" && getTaskBlockers(data, task).length) {
     renderProjectRoom();
-    showToast("前置工作尚未完成，請先處理阻塞項目");
+    showToast("前置工作尚未完成，請先完成前置工作");
     return;
   }
   if (nextStatus === "review") return openWorkFlowDialog(taskId, "review");
@@ -2072,7 +2072,7 @@ function openTaskCompletionDialog(taskId) {
   const openIssues = data.issues.filter(issue => issue.taskId === taskId && issue.status === "open");
   if (openIssues.length) {
     openProjectRoom(uiState.projectId, "records", true, openIssues[0].id);
-    showToast(`這項工作仍有 ${openIssues.length} 個待解決問題，先完成問題處理`);
+    showToast(`這項工作仍有 ${openIssues.length} 個待解決問題，請先處理未結問題`);
     return;
   }
   captureFlow = { mode: "complete-task", issueId: null, taskId };
@@ -2080,21 +2080,21 @@ function openTaskCompletionDialog(taskId) {
   captureForm.elements.kind.value = "task";
   configureCaptureForm("task");
   captureKicker.textContent = "確認工作";
-  captureDialogTitle.textContent = "完成並驗收工作";
-  captureIntro.textContent = "留下完成結果，工作才會進入已完成；若還有下一步，可以直接建立成新工作。";
+  captureDialogTitle.textContent = "確認工作完成";
+  captureIntro.textContent = "確認後，工作會移至「已完成」。";
   captureContext.hidden = false;
   captureContext.innerHTML = `<strong>${escapeHTML(task.title)}</strong><span>${escapeHTML(task.detail)}</span>`;
   captureTitleField.hidden = true;
   captureForm.elements.title.disabled = true;
   captureDetailLabel.textContent = "完成結果或驗收說明（必填）";
-  captureForm.elements.detail.placeholder = "實際完成了什麼？如何確認已達成？";
+  captureForm.elements.detail.placeholder = "請說明交回結果與驗收情形";
   captureForm.elements.detail.required = true;
-  captureDetailHelp.textContent = "這段結果會留在工作卡與完整紀錄中。";
+  captureDetailHelp.textContent = "";
   captureFollowupField.hidden = false;
   captureForm.elements.followup.disabled = false;
-  captureFollowupLabel.textContent = "接下來要做什麼（選填）";
+  captureFollowupLabel.textContent = "後續事項（選填）";
   captureForm.elements.followup.placeholder = "若仍有後續工作，可在這裡寫下並建立工作";
-  captureFollowupHelp.textContent = "只有勾選建立工作時，這段文字才會進入工作板。";
+  captureFollowupHelp.textContent = "勾選「建立後續工作」後，可在工作板繼續追蹤。";
   captureNextTaskField.hidden = false;
   captureCreateTask.disabled = false;
   captureTaskFields.hidden = true;
@@ -2160,7 +2160,7 @@ function openLinkDialog(kind = "project", id = null, evidenceId = "") {
     linkForm.elements.note.value = existing.note || "";
   }
   const contextLabel = evidenceContextLabel(data, target);
-  linkContext.innerHTML = `<strong>${escapeHTML(contextLabel)}</strong><span>儲存後，可從這裡或搜尋開啟連結。</span>`;
+  linkContext.innerHTML = `<strong>${escapeHTML(contextLabel)}</strong><span>儲存後可從「文件與連結」查看。</span>`;
   if (typeof linkDialog.showModal === "function") linkDialog.showModal();
   else linkDialog.setAttribute("open", "");
   requestAnimationFrame(() => (existing ? linkTitle : linkUrl).focus());
@@ -2263,19 +2263,19 @@ function openIssueResolutionDialog(issueId) {
   captureKicker.textContent = "解決問題";
   captureDialogTitle.textContent = "完成問題處理";
   captureIntro.textContent = linkedDecisions.length
-    ? `已連結 ${linkedDecisions.length} 筆決策，這裡只補上實際處理結果。`
-    : "把處理結果留在原問題上；若中間有需要保留的選擇，可先回到問題下記錄決策。";
+    ? `本問題已有 ${linkedDecisions.length} 筆決策，請登記處理結果。`
+    : "請記錄處理結果。";
   captureContext.hidden = false;
   captureContext.innerHTML = `<strong>${escapeHTML(issue.title)}</strong><span>${escapeHTML(issue.detail)}${latestDecision ? ` · 最近決策：${escapeHTML(latestDecision.title)}` : ""}</span>`;
   captureTitleField.hidden = true;
   captureForm.elements.title.disabled = true;
-  captureDetailLabel.textContent = linkedDecisions.length ? "實際處理結果（必填）" : "如何解決（必填）";
-  captureForm.elements.detail.placeholder = linkedDecisions.length ? "這些決策執行後，問題最後變成什麼狀態？" : "寫下最後怎麼處理、結果如何";
+  captureDetailLabel.textContent = linkedDecisions.length ? "實際處理結果（必填）" : "處理結果（必填）";
+  captureForm.elements.detail.placeholder = linkedDecisions.length ? "請說明執行結果" : "請說明處理方式與結果";
   captureForm.elements.detail.required = true;
-  captureDetailHelp.textContent = "必填。這段內容會成為原問題的處理結果。";
+  captureDetailHelp.textContent = "";
   captureFollowupLabel.textContent = "後續注意事項（選填）";
   captureForm.elements.followup.placeholder = "仍需觀察、驗證或追蹤的事情";
-  captureFollowupHelp.textContent = "選填。沒有後續事項可以留空。";
+  captureFollowupHelp.textContent = "";
   captureNextTaskField.hidden = false;
   captureCreateTask.disabled = false;
   captureSubmit.textContent = "完成並關閉問題";
@@ -2366,7 +2366,7 @@ function closeScheduleDialog() {
 function getCommandCatalog() {
   const commands = [
     { kind: "說明", title: "工作用語辭典", detail: "查詢工作台的用詞、舊稱與例子", action: "glossary" },
-    { kind: "指令", title: "查看優先處理", detail: "跨案件整理待解決問題與正在推進的工作", action: "attention" },
+    { kind: "指令", title: "查看優先處理", detail: "查看各案待解決問題、逾期工作與近期截止事項", action: "attention" },
     { kind: "資料", title: "匯出本機備份", detail: "下載工作板、問題、決策與紀錄的 JSON 備份", action: "export" },
     { kind: "資料", title: "匯入本機備份", detail: "從先前匯出的 JSON 還原案件資料", action: "import" }
   ];
@@ -2379,7 +2379,7 @@ function getCommandCatalog() {
       const due = getDueMeta(task.due, task.dueTime, task.status === "done");
       commands.push({ kind: "工作", title: task.title, detail: `${project.name} / ${boardColumns.find(column => column.id === task.status)?.label || task.status} / ${due.display} · ${due.short}`, projectId: project.id, tab: "board", recordId: task.id });
     });
-    workspaceData[project.id].issues.forEach(issue => commands.push({ kind: issue.status === "open" ? "待解決問題" : "已解問題", title: issue.title, detail: `${project.name} / ${issueContextLabel(workspaceData[project.id], issue)}`, projectId: project.id, tab: "records", recordId: issue.id }));
+    workspaceData[project.id].issues.forEach(issue => commands.push({ kind: issue.status === "open" ? "待解決問題" : "已解決問題", title: issue.title, detail: `${project.name} / ${issueContextLabel(workspaceData[project.id], issue)}`, projectId: project.id, tab: "records", recordId: issue.id }));
     workspaceData[project.id].files.forEach(file => commands.push({ kind: file.source === "link" ? "外部連結" : "資料", title: file.name, detail: `${project.name} / ${evidenceContextLabel(workspaceData[project.id], file)}${file.note ? ` / ${file.note}` : ""}${file.url ? ` / ${file.url}` : ""}`, projectId: project.id, tab: "files", recordId: file.id }));
   });
   return commands;

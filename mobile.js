@@ -65,12 +65,20 @@
       const details = document.createElement('details'); details.className = 'm-case'; details.dataset.mobileCase = id;
       details.style.setProperty('--project-color', project.color);
       details.open = openCases.has(id);
-      details.innerHTML = `<summary><strong>${e(project.name)}</strong><span>${e(snapshot.state)}</span><small>${totals.direct.length - totals.incomplete.length}/${totals.direct.length} 主要工作 · ${e(data.deadlineDate || '未排定')}</small><small class="m-case-signals">${totals.issues.length} 個問題 · ${totals.active.length} 項推進中</small></summary><div class="m-case-works"></div>`;
+      const progress = [
+        totals.direct.length && (totals.direct.length - totals.incomplete.length) + "/" + totals.direct.length + " 項必要工作已完成",
+        data.deadlineDate && "預計交付 " + data.deadlineDate
+      ].filter(Boolean).join(" · ");
+      const alerts = [
+        totals.issues.length && totals.issues.length + " 個待解決問題",
+        totals.overdue.length && totals.overdue.length + " 項工作逾期"
+      ].filter(Boolean).join(" · ");
+      details.innerHTML = `<summary><strong>${e(project.name)}</strong><span>${e(snapshot.state)}</span>${progress ? `<small>${e(progress)}</small>` : ""}${alerts ? `<small class="m-case-signals">${alerts}</small>` : ""}</summary><div class="m-case-works"></div>`;
       const body = details.querySelector('.m-case-works');
       const link = section.querySelector('.d-project-link');
       if (link) { link.innerHTML = `進入案件 ↗`; body.append(link); }
       for (const child of [...section.querySelectorAll(':scope > .d-tree-item')]) body.append(child);
-      if (!body.querySelector('.d-tree-item')) body.insertAdjacentHTML('beforeend', '<p class="d-help">尚無主要工作，可進入案件新增。</p>');
+      if (!body.querySelector('.d-tree-item')) body.insertAdjacentHTML('beforeend', '<p class="d-help">尚未安排工作。</p>');
       if (data.goal.title && data.goal.title !== project.name) body.insertAdjacentHTML('afterbegin', `<p class="d-help">交付目標：${e(data.goal.title)}</p>`);
       details.addEventListener('toggle', () => { if (details.open) openCases.add(id); else openCases.delete(id); });
       section.replaceWith(details);
@@ -115,17 +123,17 @@
       item('操作說明', 'data-m-action="help"') + '<a class="d-action" href="./glossary.html" target="_blank" rel="noopener">工作用語辭典 ↗</a>');
     if (action === 'help') {
       controls.querySelector('details').open = false;
-      showMenu('操作說明', '<p>案件：展開案件，查看各項工作的狀態；點工作進入操作。</p><p>拓樸圖可單指拖曳、雙指縮放。點名稱開啟工作，點＋展開子工作。</p><p>點「顯示全圖」可讓整張拓樸圖回到畫面內。</p><p>時間軸依日期顯示各案件的進度。</p>');
+      showMenu('操作說明', '<p>展開案件可查看工作狀態，點工作名稱可查看詳情。</p><p>拓樸圖可單指拖曳、雙指縮放。點名稱開啟工作，點＋展開子工作。</p><p>「顯示全圖」會將全部案件縮放至畫面內。</p><p>時間軸依日期顯示各案件的進度。</p>');
     }
     if (action === 'add') {
       if (uiState.surface !== 'project') return workspaceManager.newProjectDialog();
-      showMenu('新增到目前工作區', item('記錄進度', 'data-m-action="progress"') +
+      showMenu('新增案件紀錄', item('記錄進度', 'data-m-action="progress"') +
         item('記錄問題', 'data-m-action="issue"') + item('新增工作', 'data-m-action="work"'));
     }
     if (action === 'issue') openCaptureDialog('issue');
     if (action === 'work') openCaptureDialog('task');
     if (action === 'progress') openCaptureDialog('note');
-    if (action === 'issues') showMenu('各案件的待解決問題', getPortfolioProjects().map(project => {
+    if (action === 'issues') showMenu('待解決問題', getPortfolioProjects().map(project => {
       const count = workspaceData[project.id].issues.filter(issue => issue.status === 'open').length;
       return item(e(project.name), `data-open-project-tab="records" data-project-id="${e(project.id)}"`, `${count} 個待解決問題`);
     }).join('') || '<p>尚未建立案件。</p>');

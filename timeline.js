@@ -52,14 +52,16 @@ const workTimeline = (() => {
       for (const r of task.requests) {
         const target = {route:"open-request", item:r.id};
         if (!["accepted","cancelled","checking"].includes(r.state)) {
-          const due = r.state === "waiting" ? r.expectedDate || r.due : r.due;
-          if (due && !(r.assignment && due === task.due)) put(due, "plan", r.title, [r.person, "約定日期"].filter(Boolean).join(" · "), target);
+          const expectingReply = r.state === "waiting" && r.direction !== "inbound";
+          const due = expectingReply ? r.expectedDate : r.due;
+          const dateLabel = expectingReply ? "預計回覆" : r.assignment ? "約定交件日" : r.direction === "inbound" ? "收件期限" : "提供期限";
+          if (due && !(r.assignment && due === task.due)) put(due, "plan", r.title, [r.person, dateLabel].filter(Boolean).join(" · "), target);
           if (r.followOn && r.followOn !== due) put(r.followOn, "plan", "跟進 · " + r.title, r.person, target);
         }
         for (const [i, round] of (r.rounds || []).entries()) {
           const who = [round.person || r.person, "第 " + (i+1) + " 輪"].filter(Boolean).join(" · ");
           const received = r.direction === "inbound";
-          put(round.sentDate, "actual", (received ? "已提出 · " : "已送出 · ") + r.title, [who,round.note].filter(Boolean).join(" · "), {...target, refs:received ? [] : round.artifacts});
+          put(round.sentDate, "actual", (received ? "已索取 · " : "已送出 · ") + r.title, [who,round.note].filter(Boolean).join(" · "), {...target, refs:received ? [] : round.artifacts});
           put(round.receivedDate, "actual", "已收到 · " + r.title, who, {...target, refs:round.artifacts});
           const reply = {revise:"退回修改", accepted:"已確認", cancelled:"已結束"}[round.state];
           if (reply) put(round.replyDate || round.repliedAt, round.state === "revise" ? "issue" : "actual", reply + " · " + r.title, [who,round.reply].filter(Boolean).join(" · "), {...target, refs:round.artifacts});
@@ -113,7 +115,7 @@ const workTimeline = (() => {
     if (scope === "all") {
       for (const project of projects) rows.push({name:project.name, sub:workspaceData[project.id].goal.title, project, events:byLane.get(project) || []});
     } else if (focus) {
-      for (const [name,kinds] of [["工作進展",["actual","issue"]],["目前狀態",["current"]],["接下來",["plan"]]]) {
+      for (const [name,kinds] of [["工作進度",["actual","issue"]],["目前狀態",["current"]],["預定事項",["plan"]]]) {
         const group = events.filter(ev => kinds.includes(ev.kind));
         if (group.length) rows.push({name,project:p,events:group});
       }
@@ -132,7 +134,7 @@ const workTimeline = (() => {
     const state = states.get(key) || {mode:"all",anchor:today,selected:null};
     states.set(key,state);
     const title = focus ? "工作時間軸" : scope === "all" ? "全局時間軸" : "案件時間軸";
-    if (!events.length) return '<h3>'+title+'</h3><p class="chron-empty">有工作進度或交付日期後，就會出現在這裡。</p>';
+    if (!events.length) return '<h3>'+title+'</h3><p class="chron-empty">尚無已記錄的進度或預定日期。</p>';
     let start = today, end = today;
     for (const ev of events) { start = Math.min(start,ev.day); end = Math.max(end,ev.day); }
     if (state.mode === "week") {start = state.anchor - (new Date(state.anchor*dayMs).getUTCDay()+6)%7; end = start+6;}
@@ -154,7 +156,7 @@ const workTimeline = (() => {
     const peak = Math.max(1,...bins.map(b=>b.length));
     const dateLabel = i => step===1 ? short(start+i) : short(start+i*step)+"–"+short(Math.min(end,start+(i+1)*step-1));
     const todayCol = Math.floor((today-start)/step);
-    const modes = '<div class="chron-switch">'+[["all","全期"],["week","逐週"]].map(([mode,label])=>'<button type="button" data-chron-mode="'+mode+'" aria-pressed="'+(mode===state.mode)+'">'+label+'</button>').join("")+'</div>';
+    const modes = '<div class="chron-switch">'+[["all","全部日期"],["week","逐週"]].map(([mode,label])=>'<button type="button" data-chron-mode="'+mode+'" aria-pressed="'+(mode===state.mode)+'">'+label+'</button>').join("")+'</div>';
     const legend = Object.entries(labels).map(([kind,label])=>'<span><i class="chron-mark '+kind+'"></i>'+label+'</span>').join("");
     const btn = (name,label,aria=label)=>'<button type="button" data-chron-nav="'+name+'" aria-label="'+aria+'">'+label+'</button>';
     const plot = (html,extra="")=>'<div class="chron-plot '+extra+'">'+(todayCol>=0 && todayCol<count ? '<i class="chron-today" style="--col:'+todayCol+'"></i>' : '')+html+'</div>';
@@ -179,7 +181,7 @@ const workTimeline = (() => {
         if (work && !focus) controls.push(`<button type="button" data-delivery-action="open" ${attrs}>開啟「${e(work.title)}」工作</button>`);
         if (!work && scope === "all") controls.push(`<button type="button" data-open-project="${e(ev.project.id)}">開啟「${e(ev.project.name)}」案件</button>`);
         if (ev.route === "open-milestone") controls.push(`<button type="button" data-delivery-action="timeline-edit-date" ${attrs} data-item="${e(ev.item)}">編輯日期</button>`);
-        if (ev.route === "open-request") controls.push(`<button type="button" data-delivery-action="open-request" ${attrs} data-item="${e(ev.item)}">查看這筆往來</button>`);
+        if (ev.route === "open-request") controls.push(`<button type="button" data-delivery-action="open-request" ${attrs} data-item="${e(ev.item)}">查看往來紀錄</button>`);
         if (ev.record || ev.issue) controls.push(`<button type="button" data-open-project-tab="${ev.tab || "records"}" data-project-id="${e(ev.project.id)}" data-record-id="${e(ev.record || ev.issue)}">${ev.issue ? "查看問題" : "查看原始紀錄"}</button>`);
         const links=(ev.refs || []).map(ref=>{
           const docId=ref.documentId || workspaceData[ev.project.id].files.find(f=>f.id===ref.fileId)?.documentId;

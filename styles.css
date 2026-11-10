@@ -1253,3 +1253,6 @@ button:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Optional guidance and metadata have no footprint when there is nothing to show. */
+.field-help:empty, #capture-intro:empty, .d-work-link small:empty, .d-board-card > small:empty { display: none; }
