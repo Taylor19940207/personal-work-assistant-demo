@@ -14,6 +14,7 @@
 
   function normalize(data) {
     const firstMigration = !data.deliveryModelVersion;
+    data.appointments ||= [];
     data.goal ||= { title: "", criteria: "", acceptedAt: "", result: "" };
     for (const task of data.tasks) {
       task.parentId ||= "";
@@ -372,6 +373,15 @@
   getAttentionItems = function() {
     const items = oldAttention();
     for (const project of getPortfolioProjects()) {
+      const data = workspaceData[project.id];
+      if (data.lifecycle !== "completed") for (const item of data.appointments) {
+        if (item.status !== "scheduled") continue;
+        const due = getDueMeta(item.date, item.time);
+        if (due.days === null || due.days < 0 || due.days > 7) continue;
+        const work = data.tasks.find(task => task.id === item.taskId);
+        items.push({priority:due.days === 0 ? 0 : 1, dueAt:due.dueAt, projectId:project.id, recordId:work?.id || "", appointmentId:item.id,
+          kind:"行程", title:item.title, context:[item.date,item.time,work?.title,item.place].filter(Boolean).join(" · ")});
+      }
       for (const task of workspaceData[project.id].tasks) {
         for (const milestone of task.milestones || []) {
           if (milestone.actualDate) continue;
@@ -397,12 +407,40 @@
     const up = parent ? action("← " + e(parent.title), "work-up", task.id) : action("← 案件工作", "work-up", task.id);
     return `<nav class="d-breadcrumb" aria-label="工作層級">${up}</nav>`;
   }
+  function appointmentRow(item, work, projectId, context) {
+    const when = [item.date, item.time].filter(Boolean).join(" ");
+    const detail = [when, item.place, context, item.status === "held" && "已舉行", item.status === "cancelled" && "已取消"].filter(Boolean).join(" · ");
+    return `<button type="button" class="d-context-link" data-delivery-action="appointment" data-project="${e(projectId)}" data-work="${e(work?.id || "")}" data-item="${e(item.id)}"><strong>${e(item.title)}</strong><span>${e(detail)}</span></button>`;
+  }
+
+  function agenda(project, data, task = null) {
+    const upcoming = [], past = [];
+    const works = new Map(data.tasks.map(work => [work.id,work]));
+    for (const item of data.appointments) {
+      if (task && item.taskId !== task.id) continue;
+      const work = works.get(item.taskId);
+      const html = appointmentRow(item, work, project.id, task ? "" : work?.title || "整個案件");
+      (item.status === "scheduled" ? upcoming : past).push({date:item.date, time:item.time || "", html});
+    }
+    if (!task) {
+      for (const work of data.tasks) for (const item of work.milestones) {
+        if (item.actualDate) continue;
+        const date = item.committedDate || item.plannedDate;
+        const when = item.committedDate ? "已約定 " + date : date ? "預計 " + date : "日期待定";
+        upcoming.push({date:date || "9999", time:"", html:`<button type="button" class="d-context-link" data-delivery-action="open-milestone" data-work="${e(work.id)}" data-item="${e(item.id)}"><strong>${e(item.title)}</strong><span>${e([when, work.title, workPeople(work)].filter(Boolean).join(" · "))}</span></button>`});
+      }
+    }
+    const byTime = (a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time);
+    return `<section class="d-section d-agenda"><div class="d-section-title"><h3>${task ? "工作行程" : "案件行程"}</h3>${action("新增行程", "appointment", task?.id)}</div>
+      ${upcoming.sort(byTime).map(row=>row.html).join("")}
+      ${past.length ? `<details><summary>已結束的行程 · ${past.length}</summary>${past.sort((a,b)=>byTime(b,a)).map(row=>row.html).join("")}</details>` : ""}</section>`;
+  }
+
   function overview(project, data) {
     const s = summary(data);
     const today = localISODate();
     const coordination = data.tasks.filter(task => task.status !== "done").flatMap(task =>
       outstandingRequests(data, task).map(request => ({task, request, brief:requestBrief(data, request, today)})));
-    const dates = data.tasks.flatMap(task => task.milestones.filter(item => !item.actualDate).map(item => ({ task, item }))).sort((a, b) => (a.item.committedDate || a.item.plannedDate || "9999").localeCompare(b.item.committedDate || b.item.plannedDate || "9999"));
     const risks = data.tasks.map(task => dependencyRows(data,task,true)).join("");
     const needsAttention = risks || coordination.length || s.issues.length || s.overdue.length || s.changed;
     const canDeliver = data.tasks.length > 0 && !s.incomplete.length && !s.changed;
@@ -421,10 +459,7 @@
           ${s.overdue.map(task => `<button type="button" class="d-context-link" data-delivery-action="open" data-work="${e(task.id)}"><strong>${e(task.title)}</strong><span>工作逾期 · 原訂 ${dateLabel(task.due)} 完成</span></button>`).join("")}
           ${coordination.map(({task, request, brief}) => `<button type="button" class="d-context-link" data-delivery-action="open-request" data-work="${e(task.id)}" data-item="${e(request.id)}"${brief.rowId ? ' data-row="' + e(brief.rowId) + '"' : ""}><strong>${e(brief.title)}</strong><span>${e([task.title, brief.detail].filter(Boolean).join(" · "))}</span></button>`).join("")}
           ${s.changed ? "<p>已完成的工作中有子工作重新開啟，請確認交付進度。</p>" : ""}${s.issues.length ? action("查看待解決問題（" + s.issues.length + "）", "issues") : ""}</section>` : ""}
-        ${dates.length ? `<section><h3>案件行程</h3>${dates.map(({task, item}) => {
-          const date = item.committedDate ? "已約定 " + item.committedDate : item.plannedDate ? "預計 " + item.plannedDate : "日期待定";
-          return `<button type="button" class="d-context-link" data-delivery-action="open-milestone" data-work="${e(task.id)}" data-item="${e(item.id)}"><strong>${e(item.title)}</strong><span>${e([date, task.title, workPeople(task)].filter(Boolean).join(" · "))}</span></button>`;
-        }).join("")}</section>` : ""}
+        ${agenda(project, data)}
         ${data.activity.length ? `<section><h3>近期紀錄</h3>${data.activity.slice(0,4).map(item => `<p><small>${e(item.date)}</small><br>${e(item.title)}</p>`).join("")}</section>` : ""}
       </aside></div>
     </div>`;
@@ -535,6 +570,7 @@
         </section>
         <section class="d-section" ${task.requests.length ? "" : "data-unused-tools"}><div class="d-section-title"><div><h3>清單與往來</h3></div><div class="d-actions">${action("＋ 清單", "list-new", task.id)}${action("新增資料往來", "request", task.id)}</div></div>${task.requests.map(request => requestCard(task, request, data)).join("") || `<p class="d-help">例如：會計師需要修訂後的財務資料，預計週五回覆。</p>`}</section>
         <section class="d-section" ${task.milestones.length ? "" : "data-unused-tools"}><div class="d-section-title"><div><h3>重要日期</h3></div>${action("新增重要日期", "milestone", task.id)}</div>${task.milestones.map(milestone => `<div class="d-milestone"><div><strong>${e(milestone.title)}</strong><p>${e(milestoneDates(milestone))}</p>${milestone.note ? `<p>${e(milestone.note)}</p>` : ""}</div>${action("更新", "milestone", task.id, `data-item="${e(milestone.id)}"`)}</div>`).join("") || `<p class="d-help">例如：老師向主管機關提交申請的日期。</p>`}</section>
+        ${agenda(project, data, task)}
         ${timeline ? `<details class="d-timeline-fold" data-work="${e(task.id)}"><summary>工作時間軸</summary>${timeline}</details>` : ""}
         <details class="d-work-history"><summary>工作紀錄 · ${task.history.length}</summary><div class="d-section-title">${action("新增紀錄", "note", task.id)}</div>${task.history.length ? task.history.map(item => `<div class="d-history"><time>${e((item.documentEventId ? item.date : item.at || item.date).slice(0, 10))}</time><div><strong>${e(item.title)}</strong><p>${e(item.detail)}</p></div></div>`).join("") : `<p class="d-help">尚無工作紀錄。</p>`}
         ${task.reviewRounds.length ? `<details><summary>工作確認紀錄 · ${task.reviewRounds.length} 輪</summary>${task.reviewRounds.map(round => `<p>${e(round.person)} · ${dateLabel(round.sentAt?.slice(0, 10))}<br>${e(round.request)}<br>${e(round.reply || "尚無回覆")} · ${e(requestNames[round.state] || "舊版紀錄")}</p>`).join("")}</details>` : ""}</details>
@@ -628,6 +664,34 @@
       else finish(result);
     } catch (error) { failure(error); }
   });
+  function appointmentForm(project, data, task, item) {
+    const context = [project.name, task?.title].filter(Boolean).map(e).join(" / ");
+    const statusField = select("行程狀態", "status", [["scheduled","已安排"],["held","已舉行"],["cancelled","已取消"]], item?.status || "scheduled");
+    form(item ? "編輯行程" : "新增行程", context,
+      field("行程名稱", "title", item?.title, "text", true) +
+      field("日期", "date", item?.date || localISODate(), "date", true) +
+      field("時間（選填）", "time", item?.time, "time") +
+      field("地點或線上會議網址（選填）", "place", item?.place) +
+      (item ? statusField : "") +
+      `<details class="d-work-options"${item?.note ? " open" : ""}><summary>${item ? "備註" : "備註與行程狀態"}</summary><div>${field("備註（選填）", "note", item?.note, "textarea")}${item ? "" : statusField}</div></details>`, "儲存行程", values => {
+        const title = requiredValue(values, "title", "請填寫行程名稱");
+        const date = requiredValue(values, "date", "請填寫行程日期");
+        const status = values.get("status");
+        if (status === "held" && date > localISODate()) throw Error("未來的行程無法標記為已舉行");
+        const changes = {title, date, status, time:textValue(values,"time"), place:textValue(values,"place"), note:textValue(values,"note")};
+        const previous = item && [item.date,item.time].filter(Boolean).join(" ");
+        const when = [date, changes.time].filter(Boolean).join(" ");
+        const label = item && status === item.status ? "更新" : {scheduled:item ? "重新安排" : "安排",held:"已舉行",cancelled:"取消"}[status];
+        if (item) Object.assign(item, changes);
+        else data.appointments.push({id:uid("appointment"), taskId:task?.id || "", ...changes});
+        record(data, task, label + "行程：" + title, [previous && previous !== when ? previous + " → " + when : when, changes.place, changes.note].filter(Boolean).join(" · "));
+      });
+    if (item) {
+      const url = safeURL(item.place);
+      if (url) dialog.querySelector('[name="place"]').closest("label").insertAdjacentHTML("afterend", `<a href="${e(url)}" target="_blank" rel="noopener noreferrer">開啟會議連結 ↗</a>`);
+      requireFormChange();
+    }
+  }
   function requireFormChange() {
     const formElement = dialog.querySelector("form");
     const submit = formElement.querySelector('[type="submit"]');
@@ -903,10 +967,15 @@
         ${topologyProjects.length ? '<button type="button" class="d-action" data-workspace-action="manager">查看已封存案件</button>' : ""}
         ${window.exampleWorkspace ? "" : `<a href="${examples}" target="_blank" rel="noopener">查看範例案件 ↗</a>`}</section>`;
     }
-    const mine = [], following = [], contacts = new Set(), today = localISODate();
+    const mine = [], following = [], todaysAgenda = [], contacts = new Set(), today = localISODate();
     for (const project of getPortfolioProjects()) {
       const data = workspaceData[project.id];
       if (data.lifecycle === "completed" || uiState.focusProjectId && uiState.focusProjectId !== project.id) continue;
+      for (const item of data.appointments) {
+        if (item.date !== today || item.status !== "scheduled") continue;
+        const work = data.tasks.find(task => task.id === item.taskId);
+        todaysAgenda.push({time:item.time || "", html:appointmentRow(item, work, project.id, [project.name,work?.title].filter(Boolean).join(" · "))});
+      }
       const totals = summary(data);
       const first = !data.tasks.length;
       if (data.lifecycle === "active" && (first || totals.direct.length && !totals.incomplete.length && !totals.changed)) {
@@ -959,7 +1028,8 @@
     const who = [...contacts].slice(0, 2).join("、");
     const jump = (id, label) => '<button class="d-brief-jump" type="button" data-delivery-action="brief-jump" aria-controls="brief-' + id + '">' + e(label) + '</button>';
     const toFollow = following.length ? jump("following", "我在跟進 " + following.length + (who ? " · " + who : "") + " ↓") : "";
-    return '<div class="d-home">' + group("mine", "輪到我", mine, "目前沒有要處理的事。", toFollow) +
+    const todaySection = todaysAgenda.length ? `<section class="d-home-agenda"><h2>今日行程</h2>${todaysAgenda.sort((a,b)=>a.time.localeCompare(b.time)).map(row=>row.html).join("")}</section>` : "";
+    return todaySection + '<div class="d-home">' + group("mine", "輪到我", mine, "目前沒有要處理的事。", toFollow) +
       group("following", "我在跟進", following, "目前沒有待跟進的事項。", mine.length ? jump("mine", "返回我的待辦 ↑") : "") + '</div>';
   }
 
@@ -1257,6 +1327,11 @@
     }
     const data = workspaceData[projectId]; if (!data) return;
     const task = data.tasks.find(work => work.id === id);
+    if (name === "appointment") {
+      const item = itemId && data.appointments.find(event => event.id === itemId);
+      if ((itemId && !item) || (id && !task)) return showToast("找不到這筆行程或所屬工作");
+      return appointmentForm(getProject(projectId), data, task, item);
+    }
     if (name === "home-first" || name === "home-deliver") {
       openProjectRoom(projectId,"overview");
       if (name === "home-first") return workForm(data,null);

@@ -276,3 +276,7 @@
 .rl-result p { margin:6px 0; }
 
 .rl-restoring::details-content { transition: none; }
+
+.d-agenda details > summary { cursor:pointer; color:var(--paper-2); padding:8px 0; }
+.d-home-agenda { margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.d-home-agenda h2 { font-size:1.2rem; }

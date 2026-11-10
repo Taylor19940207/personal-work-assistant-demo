@@ -73,13 +73,20 @@ const workTimeline = (() => {
         put(r.repliedAt, r.state === "revise" ? "issue" : "actual", r.state === "revise" ? "退回修改" : "已回覆", r.reply);
       }
       if (task.listOutput) put(task.listOutput.at, "actual", "已交回工作結果", task.listOutput.note, {refs:task.listOutput.refs});
-      for (const step of task.checklist) if (!step.done) put(step.due, "plan", step.title, "待辦期限");
+      for (const step of task.checklist) if (!step.done) put(step.due, "plan", step.title, "預計處理日", {step:true});
       for (const h of task.history) {
         if (!h.title) continue;
         const previousCompletion=h.title.endsWith("→ 已完成") && (!task.completedAt || dayOf(h.at || h.date)!==dayOf(task.completedAt));
         if (previousCompletion || ["工作紀錄","更新現況","完成步驟","重新開啟步驟","設定指派","改派工作"].includes(h.title) || h.title.startsWith("跟進「") || h.title.includes(" → ") && !h.title.endsWith("已完成"))
           put(h.at || h.date, "actual", h.title, h.detail);
       }
+    }
+    const works = new Map(data.tasks.map(task => [task.id,task]));
+    for (const item of data.appointments || []) {
+      const task = works.get(item.taskId);
+      if (item.status === "cancelled" || focus && focus.id !== task?.id) continue;
+      add(task, item.date, item.status === "held" ? "actual" : "plan", item.title, [item.place,item.note].filter(Boolean).join(" · "),
+        {route:"appointment", item:item.id, time:item.time || ""});
     }
     for (const issue of data.issues) {
       const task = data.tasks.find(t => t.id === issue.taskId);
@@ -121,13 +128,48 @@ const workTimeline = (() => {
       }
       if (!events.length) return "";
     } else {
-      const goal = byLane.get(null) || [];
+      const caseEvents = byLane.get(null) || [];
+      const goal = caseEvents.filter(ev => ev.route !== "appointment");
+      const agenda = caseEvents.filter(ev => ev.route === "appointment");
       if (goal.length) rows.push({name:"案件交付與紀錄",project:p,events:goal});
-      for (const task of workspaceData[p.id].tasks) rows.push({name:task.title,sub:boardColumns.find(c=>c.id===task.status)?.label, project:p, task, events:byLane.get(task) || []});
+      if (agenda.length) rows.push({name:"案件行程",project:p,events:agenda});
+      const children = new Map();
+      for (const task of workspaceData[p.id].tasks) {
+        const parent = task.parentId || "";
+        if (!children.has(parent)) children.set(parent, []);
+        children.get(parent).push(task);
+      }
+      function workRows(parent, depth) {
+        for (const task of children.get(parent?.id || "") || []) {
+          rows.push({name:task.title, sub:boardColumns.find(c=>c.id===task.status)?.label, project:p, task,
+            depth, parent, events:byLane.get(task) || []});
+          workRows(task, depth + 1);
+        }
+      }
+      workRows(null, 0);
     }
     const meta = {scope,focus,rows,events,today,key};
     scopes.set(key,meta);
     return '<section class="chron" data-chron="'+e(key)+'">'+chart(meta)+'</section>';
+  }
+  function byDateAndTime(a,b) {
+    return a.day - b.day || (a.time || "").localeCompare(b.time || "");
+  }
+  function workPath(project, work) {
+    const names = [work.title];
+    const tasks = workspaceData[project.id].tasks;
+    for (let parent = work.parentId; parent;) {
+      const item = tasks.find(task => task.id === parent);
+      if (!item) break;
+      names.unshift(item.title);
+      parent = item.parentId;
+    }
+    return names.join(" › ");
+  }
+  function caption(ev, showWork = true) {
+    if (ev.route === "appointment") return [ev.time, ev.title].filter(Boolean).join(" ");
+    if (ev.step) return "待辦 · " + ev.title;
+    return showWork && ev.kind === "current" && ev.task ? ev.task.title : ev.title;
   }
   function chart(meta, targetEvent) {
     const {scope,focus,rows,events,today,key} = meta;
@@ -158,7 +200,8 @@ const workTimeline = (() => {
     const dateLabel = i => step===1 ? short(start+i) : short(start+i*step)+"–"+short(Math.min(end,start+(i+1)*step-1));
     const todayCol = Math.floor((today-start)/step);
     const modes = '<div class="chron-switch">'+[["all","全部日期"],["week","逐週"]].map(([mode,label])=>'<button type="button" data-chron-mode="'+mode+'" aria-pressed="'+(mode===state.mode)+'">'+label+'</button>').join("")+'</div>';
-    const legend = Object.entries(labels).map(([kind,label])=>'<span><i class="chron-mark '+kind+'"></i>'+label+'</span>').join("");
+    const legend = Object.entries(labels).map(([kind,label])=>'<span><i class="chron-mark '+kind+'"></i>'+label+'</span>').join("") +
+      (events.some(ev => ev.route === "appointment") ? '<span><i class="chron-mark appointment"></i>行程</span>' : "");
     const btn = (name,label,aria=label)=>'<button type="button" data-chron-nav="'+name+'" aria-label="'+aria+'">'+label+'</button>';
     const plot = (html,extra="")=>'<div class="chron-plot '+extra+'">'+(todayCol>=0 && todayCol<count ? '<i class="chron-today" style="--col:'+todayCol+'"></i>' : '')+html+'</div>';
     const axis = bins.map((b,i)=>{
@@ -170,18 +213,19 @@ const workTimeline = (() => {
     const selection = state.selected;
     function details(events, i, row) {
       if (!selection || selection.i!==i || selection.row!==row || !events.length) return "";
-      const items=[...events].sort((a,b)=>a.day-b.day);
+      const items=[...events].sort(byDateAndTime);
       const weekLink=step>1 ? `<button type="button" data-chron-week="${items[0].day}">查看 ${short(items[0].day)} 該週</button>` : "";
       const heading = items.length === 1 ? iso(items[0].day) : dateLabel(i) + " · " + items.length + " 項";
       return `<div class="chron-detail"><header><strong>${heading}</strong><span>${weekLink}<button type="button" data-chron-close aria-label="收起事件">收起 ×</button></span></header>`+items.map(ev=>{
         const work = ev.task;
-        const context = [scope === "all" && ev.project.name, !focus && work?.title].filter(Boolean).join(" · ");
+        const context = [scope === "all" && ev.project.name, !focus && work && workPath(ev.project, work)].filter(Boolean).join(" · ");
         const eventKey = e(JSON.stringify([ev.project.id, work?.id, ev.day, ev.kind, ev.item, ev.issue, ev.record, ev.title]));
         const attrs = `data-project="${e(ev.project.id)}" data-work="${e(work?.id || "")}"`;
         const controls = [];
         if (work && !focus) controls.push(`<button type="button" data-delivery-action="open" ${attrs}>開啟「${e(work.title)}」工作</button>`);
         if (!work && scope === "all") controls.push(`<button type="button" data-open-project="${e(ev.project.id)}">開啟「${e(ev.project.name)}」案件</button>`);
         if (ev.delivery && ev.kind === "plan" && scope !== "all") controls.push('<button type="button" data-action="open-project-schedule">調整交付日</button>');
+        if (ev.route === "appointment") controls.push(`<button type="button" data-delivery-action="appointment" ${attrs} data-item="${e(ev.item)}">編輯行程</button>`);
         if (ev.route === "open-milestone") controls.push(`<button type="button" data-delivery-action="timeline-edit-date" ${attrs} data-item="${e(ev.item)}">編輯日期</button>`);
         if (ev.route === "open-request") controls.push(`<button type="button" data-delivery-action="open-request" ${attrs} data-item="${e(ev.item)}">查看往來紀錄</button>`);
         if (ev.record || ev.issue) controls.push(`<button type="button" data-open-project-tab="${ev.tab || "records"}" data-project-id="${e(ev.project.id)}" data-record-id="${e(ev.record || ev.issue)}">${ev.issue ? "查看問題" : "查看原始紀錄"}</button>`);
@@ -193,9 +237,9 @@ const workTimeline = (() => {
           const url=normalizeExternalUrl(version.url || "");
           return url ? '<a class="chron-file" rel="noopener noreferrer" target="_blank" href="'+e(url)+'">'+e(ref.name || version.name)+' ↗</a>' : "";
         }).join("");
-        const title = ev.kind === "current" && work ? `${work.title} · ${ev.title}` : ev.title;
-        const label = `<i class="chron-mark ${ev.kind}"></i><strong>${e(title)}</strong>`;
-        const body = `<div class="chron-reading"><small>${e([labels[ev.kind],context].filter(Boolean).join(" · "))}</small>${ev.note ? `<p>${e(ev.note)}</p>` : ""}${links}<div class="chron-actions">${controls.join("")}</div></div>`;
+        const title = ev.kind === "current" && work ? `${work.title} · ${ev.title}` : caption(ev);
+        const label = `<i class="chron-mark ${ev.kind}${ev.route === "appointment" ? " appointment" : ""}"></i><strong>${e(title)}</strong>`;
+        const body = `<div class="chron-reading"><small>${e([ev.route === "appointment" ? (ev.kind === "actual" ? "行程已舉行" : "已安排行程") : labels[ev.kind],context].filter(Boolean).join(" · "))}</small>${ev.note ? `<p>${e(ev.note)}</p>` : ""}${links}<div class="chron-actions">${controls.join("")}</div></div>`;
         if (items.length === 1) return `<article class="chron-event" tabindex="-1" data-event-key="${eventKey}"><div class="chron-event-title">${label}</div>${body}</article>`;
         return `<details class="chron-event" ${ev === targetEvent ? "open" : ""} data-event-key="${eventKey}"><summary><time>${short(ev.day)}</time>${label}<span aria-hidden="true">⌄</span></summary>${body}</details>`;
       }).join("")+'</div>';
@@ -209,28 +253,30 @@ const workTimeline = (() => {
         groups.get(i).push(ev);
       }
       const positions=[...groups.keys()].sort((a,b)=>a-b);
-      const first=positions[0],last=positions.at(-1);
+      const progressDates = positions.filter(i => groups.get(i).some(ev => ev.route !== "appointment"));
+      const first=progressDates[0],last=progressDates.at(-1);
       const zone=last>first ? Math.max(0, Math.min(100, (todayCol-first)/(last-first)*100)) : 0;
-      const line=positions.length>1 ? '<i class="chron-line" style="--past:'+zone+'%;left:'+((first+.5)/count*100)+'%;width:'+((last-first)/count*100)+'%"></i>' : '';
+      const line=progressDates.length>1 ? '<i class="chron-line" style="--past:'+zone+'%;left:'+((first+.5)/count*100)+'%;width:'+((last-first)/count*100)+'%"></i>' : '';
       const marks=positions.map((i,nextIndex)=>{
-        const entries=groups.get(i).sort((a,b)=>a.day-b.day);
+        const entries=groups.get(i).sort(byDateAndTime);
         const visible=entries.slice(0,3);
         const room=Math.min(3,(positions[nextIndex+1] ?? count)-i);
         const branches = visible.map(ev => {
-          const caption = ev.kind === "current" && ev.task ? ev.task.title : ev.title;
-          return `<span class="chron-branch"><i class="chron-mark ${ev.kind}"></i><small>${e(caption)}</small></span>`;
+          return `<span class="chron-branch"><i class="chron-mark ${ev.kind}${ev.route === "appointment" ? " appointment" : ""}"></i><small>${e(caption(ev, scope === "all"))}</small></span>`;
         }).join("");
         const overflow = entries.length - visible.length;
         const more = overflow ? `<span class="chron-more">+${overflow} 項</span>` : "";
-        const name = dateLabel(i) + " · " + row.name + " · " + entries.map(ev => ev.title).join("、");
+        const name = dateLabel(i) + " · " + row.name + " · " + entries.map(ev => caption(ev, scope === "all")).join("、");
         const selected = selection?.i === i && selection.row === index;
         return `<button type="button" class="chron-node" style="grid-column:${i+1} / span ${room};--room:${room}" data-chron-bin="${i}" data-chron-row="${index}" aria-label="${e(name)}" aria-expanded="${selected}">${branches}${more}</button>`;
       }).join("");
-      const text='<strong>'+e(row.name)+'</strong>'+(row.sub ? '<small>'+e(row.sub)+'</small>' : '');
+      const parentLabel = row.parent ? '<small class="chron-parent">' + e(row.parent.title) + '的子工作</small>' : "";
+      const text = parentLabel + '<strong>' + e(row.name) + '</strong>' + (row.sub ? '<small>'+e(row.sub)+'</small>' : '');
       const route=scope==="all" ? 'data-open-project="'+e(row.project.id)+'"' : row.task ? 'data-delivery-action="open" data-work="'+e(row.task.id)+'" data-project="'+e(row.project.id)+'"' : "";
       const color=/^#[0-9a-f]{6}$/i.test(row.project.color) ? row.project.color : "#83e8d3";
       const label=route ? '<button type="button" class="chron-label" '+route+'>'+text+'</button>' : '<div class="chron-label">'+text+'</div>';
-      return '<div class="chron-row" style="--lane-color:'+color+'">'+label+plot(line+marks+(!marks ? '<small class="chron-none">'+(row.events.length ? '本週無事件' : '尚無日期')+'</small>' : ''))+'</div>'+(selection?.row===index ? details(groups.get(selection.i)||[],selection.i,index) : "");
+      const hierarchy = row.parent ? ' data-parent-work="' + e(row.parent.id) + '" style="--lane-color:' + color + ';--depth:' + Math.min(row.depth,4) + '"' : ' style="--lane-color:' + color + '"';
+      return '<div class="chron-row"' + hierarchy + '>'+label+plot(line+marks+(!marks ? '<small class="chron-none">'+(row.events.length ? '本週無事件' : '尚無日期')+'</small>' : ''))+'</div>'+(selection?.row===index ? details(groups.get(selection.i)||[],selection.i,index) : "");
     }).join("");
     const allDetails=selection?.row===-1 ? details(bins[selection.i]||[],selection.i,-1) : "";
     return '<header class="chron-head"><div><h3>'+title+'</h3><time>'+iso(start).replaceAll("-",".")+' — '+iso(end).replaceAll("-",".")+'</time></div>'+modes+'</header><div class="chron-toolbar"><div class="chron-legend">'+legend+'</div>'+(state.mode==="week" ? '<div class="chron-nav">'+btn("prev","‹","上一週")+btn("now","本週")+btn("next","›","下一週")+'</div>' : '')+'</div><div class="chron-grid" style="--cols:'+count+'"><div class="chron-row chron-axis"><div class="chron-label"><small>日期分布</small></div>'+plot(axis)+'</div>'+allDetails+lines+'</div>';

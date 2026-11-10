@@ -49,7 +49,7 @@ function projectDefinition(source) {
   return { id: source.id, name: source.name.trim(), color: /^#[0-9a-f]{6}$/i.test(source.color || "") ? source.color : "#83e8d3", state: "進行中", tone: "success", pattern: "solid", y: 170, progress: 0, deadline: "尚未排定", nodes: original?.nodes || [], isSample: source.isSample === true };
 }
 function projectRegistry() { return topologyProjects.map(({ id, name, color, isSample }) => ({ id, name, color, isSample: isSample !== false })); }
-function emptyWorkspaceData() { return { lifecycle: "active", deadlineDate: "", deadlineTime: "", deadlineLabel: "交付目標", tasks: [], issues: [], decisions: [], files: [], activity: [], timeline: [] }; }
+function emptyWorkspaceData() { return { lifecycle: "active", deadlineDate: "", deadlineTime: "", deadlineLabel: "交付目標", appointments: [], tasks: [], issues: [], decisions: [], files: [], activity: [], timeline: [] }; }
 function getPortfolioProjects() { return topologyProjects.filter(project => workspaceData[project.id]?.lifecycle !== "archived"); }
 function validateWorkspaceStructure(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("案件資料格式不正確");
@@ -57,6 +57,15 @@ function validateWorkspaceStructure(data) {
   const objects = (value, label) => { const items = list(value, label); if (items.some(item => !item || typeof item !== "object" || Array.isArray(item))) throw new Error(`${label}含有無效項目`); return items; };
   if (data.goal != null && (typeof data.goal !== "object" || Array.isArray(data.goal))) throw new Error("交付目標格式不正確");
   for (const key of ["tasks", "issues", "decisions", "files", "activity", "timeline"]) objects(data[key], key);
+  const appointments = objects(data.appointments, "行程");
+  const appointmentIds = new Set();
+  for (const item of appointments) {
+    if (!item.id || typeof item.id !== "string" || appointmentIds.has(item.id) || typeof item.title !== "string" ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(item.date) || !["scheduled","held","cancelled"].includes(item.status)) throw Error("行程資料不完整或識別碼重複");
+    if (item.time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(item.time) ||
+        ["place","note","time","taskId"].some(key => item[key] != null && typeof item[key] !== "string")) throw Error("行程時間或內容格式不正確");
+    appointmentIds.add(item.id);
+  }
   for (const task of data.tasks || []) {
     if (typeof task.id !== "string" || typeof task.title !== "string") throw new Error("工作缺少名稱或識別碼");
     for (const key of ["checklist", "reviewRounds", "conditions", "history", "milestones"]) objects(task[key], key);
@@ -1367,8 +1376,8 @@ function openAttentionPanel() {
     <div class="attention-summary"><strong>${items.length}</strong><span>件需要注意</span><strong>${affectedProjects}</strong><span>個相關案件</span></div>
     <div class="attention-list">${items.map(item => {
       const project = getProject(item.projectId);
-      const target = item.requestId || item.milestoneId;
-      const navigation = target ? `data-delivery-action="${item.requestId ? "open-request" : "open-milestone"}" data-project="${escapeHTML(item.projectId)}" data-work="${escapeHTML(item.recordId)}" data-item="${escapeHTML(target)}"` : `data-open-project-tab="${item.tab}" data-project-id="${item.projectId}" ${item.recordId ? `data-record-id="${escapeHTML(item.recordId)}"` : ""}`;
+      const target = item.appointmentId || item.requestId || item.milestoneId;
+      const navigation = target ? `data-delivery-action="${item.appointmentId ? "appointment" : item.requestId ? "open-request" : "open-milestone"}" data-project="${escapeHTML(item.projectId)}" data-work="${escapeHTML(item.recordId)}" data-item="${escapeHTML(target)}"` : `data-open-project-tab="${item.tab}" data-project-id="${item.projectId}" ${item.recordId ? `data-record-id="${escapeHTML(item.recordId)}"` : ""}`;
       return `<button class="attention-row" type="button" ${navigation}>
         <span class="attention-kind">${escapeHTML(item.kind)}</span>
         <strong>${escapeHTML(item.title)}</strong>

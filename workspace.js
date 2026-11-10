@@ -550,7 +550,7 @@
     const projects = getPortfolioProjects();
     portfolioProjectCount.textContent = projects.filter(project => workspaceData[project.id].lifecycle === "active").length;
     portfolioIssueCount.textContent = projects.reduce((count, project) => count + workspaceData[project.id].issues.filter(issue => issue.status === "open").length, 0);
-    portfolioNearCount.textContent = getAttentionItems().filter(item => ["逾期", "期限", "案件逾期", "案件期限", "重要日期"].includes(item.kind)).length;
+    portfolioNearCount.textContent = getAttentionItems().filter(item => ["逾期", "期限", "案件逾期", "案件期限", "重要日期", "行程"].includes(item.kind)).length;
   };
   const previousTopology = renderTopology;
   renderTopology = function() {

@@ -159,3 +159,13 @@
 @media(min-width:720px){
   .app-frame.is-list-view:not(.is-my-work) .workspace:not(.is-project-depth) { grid-template-rows:auto minmax(0,1fr); }
 }
+
+.chron-row[data-parent-work] .chron-label { position:relative; --branch-start:calc(clamp(12px, 2vw, 28px) + var(--depth) * 16px); padding-inline-start:calc(var(--branch-start) + 10px); }
+.chron-row[data-parent-work] .chron-label::before { content:""; position:absolute; inset-inline-start:var(--branch-start); top:0; height:50%; width:7px; border-inline-start:1px solid #526568; border-bottom:1px solid #526568; }
+.chron-row[data-parent-work] .chron-label strong { border:0; padding:0; }
+.chron-row .chron-label .chron-parent { color:var(--chron-muted); overflow-wrap:anywhere; white-space:normal; }
+@container (max-width:620px) {
+  .chron-row[data-parent-work] .chron-parent { flex-basis:100%; }
+}
+
+.chron-mark.appointment { transform:none; border:1.5px solid var(--ink); border-top-width:3px; background:transparent; border-radius:1px; }

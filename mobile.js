@@ -128,6 +128,7 @@
     if (action === 'add') {
       if (uiState.surface !== 'project') return workspaceManager.newProjectDialog();
       showMenu('新增案件紀錄', item('記錄進度', 'data-m-action="progress"') +
+        item('新增行程', 'data-delivery-action="appointment" data-work="' + e(uiState.projectTab === 'board' ? uiState.focusRecordId || '' : '') + '"') +
         item('記錄問題', 'data-m-action="issue"') + item('新增工作', 'data-m-action="work"'));
     }
     if (action === 'issue') openCaptureDialog('issue');
