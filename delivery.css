@@ -117,16 +117,14 @@
 .d-map-open small { color: var(--muted); font-size: 11px; line-height: 1.6; }
 .d-map-open:hover strong { color: var(--signal); }
 .d-map-node > .d-action { padding: 5px 8px; margin-right: 8px; font: 11px var(--mono); white-space: nowrap; }
-.d-delivery-node { position:absolute; transform:translateY(-50%); display:flex; align-items:center; gap:12px; padding:8px 10px 8px 0; min-height:48px; background:transparent; border:0; text-align:left; cursor:pointer; color:var(--paper-2); }
-.d-delivery-node span { display:grid; gap:3px; font-size:12px; }
-.d-delivery-node time { color:var(--paper); font:600 16px var(--mono); }
-.d-delivery-node:hover time, .d-delivery-node:focus-visible time { color:var(--signal); }
-.d-delivery-node.is-muted { opacity:.3; }
-.d-tree-paths path.d-delivery-edge { stroke-dasharray:5 5; }
 .d-map-goal { transform:translateY(-50%); border-left: 3px solid var(--project-color); background: var(--canvas); }
-.d-map-goal button { display: grid; gap: 7px; padding: 9px 18px; width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer; }
+.d-map-goal [data-open-project] { display: grid; gap: 7px; padding: 9px 18px; width: 100%; text-align: left; background: transparent; border: 0; cursor: pointer; }
 .d-map-goal strong { font-size: 21px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .d-map-goal span { font-size: 12px; color: var(--paper-2); }
+.d-goal-date { display:flex; align-items:center; gap:8px; width:100%; min-height:44px; padding:5px 18px; border:0; background:transparent; color:var(--paper-2); font:12px var(--sans); text-align:left; cursor:pointer; }
+.d-goal-date time { font:600 14px var(--mono); color:var(--paper); }
+.d-goal-date span { margin-left:auto; }
+.d-goal-date:is(:hover,:focus-visible) time { color:var(--signal); text-decoration:underline; text-underline-offset:3px; }
 .d-map-goal small { color: var(--muted); font-size: 11px; }
 .d-map-node.is-muted, .d-map-goal.is-muted { opacity: .3; }
 .d-map-more { position: absolute; }

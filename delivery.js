@@ -208,12 +208,12 @@
   renderTopology = function() {
     const paths = [], nodes = [];
     const projectY = new Map();
-    let cursor = 65, maxDepth = 1, projectX = 0;
+    let cursor = 65, maxDepth = 0, projectX = 0;
     const projects = getPortfolioProjects();
     const columns = projects.length > 1 && !expanded.size && workspace.clientWidth >= 1100 ? 2 : 1;
     let bandStart = 65, bandBottom = 65;
     const nodeWidth = 260, step = 350, row = 112;
-    function connect(x1, y1, x2, y2, key, delivery = false) { paths.push(`<path ${delivery ? 'class="d-delivery-edge"' : ""} data-motion-edge="${e(key)}" d="M${x1} ${y1} C${x1 + 48} ${y1},${x2 - 48} ${y2},${x2} ${y2}"/>`); }
+    function connect(x1, y1, x2, y2, key) { paths.push(`<path data-motion-edge="${e(key)}" d="M${x1} ${y1} C${x1 + 48} ${y1},${x2 - 48} ${y2},${x2} ${y2}"/>`); }
     function layoutTask(project, task, depth) {
       maxDepth = Math.max(maxDepth, depth);
       const data = workspaceData[project.id];
@@ -252,22 +252,17 @@
       if (roots.length > limit) laid.push(moreNode(project.id, roots.length - limit, 1, project.id));
       const delivered = data.lifecycle === "completed";
       const deliveryDate = delivered ? data.goal.acceptedAt?.slice(0,10) : data.deadlineDate;
-      if (deliveryDate) {
-        const x = projectX + 45 + step, y = cursor + row / 2;
-        cursor += row;
-        const label = delivered ? "已對外交付" : "預計交付";
-        nodes.push(`<button type="button" class="d-delivery-node" data-motion-key="delivery/${e(project.id)}" data-delivery-action="show-delivery" data-project="${e(project.id)}" data-map-project="${e(project.id)}" data-delivery-date="${e(deliveryDate)}" aria-label="${e(project.name)}，${label} ${e(deliveryDate)}，查看案件時間軸" style="left:${x}px;top:${y}px"><i class="chron-mark ${delivered ? "actual" : "plan"}" aria-hidden="true"></i><span>${label}<time datetime="${e(deliveryDate)}">${e(deliveryDate)}</time></span></button>`);
-        laid.push({x,y,key:"delivery-date",delivery:true});
-      }
+      const label = delivered ? "已對外交付" : "預計交付";
+      const dateButton = deliveryDate ? `<button type="button" class="d-goal-date" data-delivery-action="show-delivery" data-project="${e(project.id)}" data-delivery-date="${e(deliveryDate)}" aria-label="${e(project.name)}，${label} ${e(deliveryDate)}，查看案件時間軸"><i class="chron-mark ${delivered ? "actual" : "plan"}" aria-hidden="true"></i>${label}<time datetime="${e(deliveryDate)}">${e(deliveryDate)}</time><span aria-hidden="true">↗</span></button>` : "";
       const y = laid.length ? (laid[0].y + laid.at(-1).y) / 2 : cursor + row / 2;
       if (!laid.length) cursor += row;
       projectY.set(project.id, y);
-      laid.forEach(child => connect(projectX + 305, y, child.x, child.y, `${project.id}/goal/${child.key}`, child.delivery));
+      laid.forEach(child => connect(projectX + 305, y, child.x, child.y, `${project.id}/goal/${child.key}`));
       const s = summary(data);
       const goal = data.goal.title || project.name;
       const progress = s.direct.length ? " · 已完成 " + (s.direct.length - s.incomplete.length) + "/" + s.direct.length + " 項必要工作" : "";
       nodes.splice(goalIndex, 0, `<article data-motion-key="goal/${e(project.id)}" class="d-map-goal" style="left:${projectX + 45}px;top:${y}px;--project-color:${project.color}" data-map-project="${e(project.id)}" data-has-issues="${Boolean(s.issues.length)}">
-        <button type="button" data-open-project="${e(project.id)}"><small>${goal === project.name ? "交付目標" : e(project.name) + " · 交付目標"}</small><strong>${e(goal)}</strong><span>${e(getProjectSnapshot(project).state)}${progress}</span></button>
+        ${dateButton}<button type="button" data-open-project="${e(project.id)}"><small>${goal === project.name ? "交付目標" : e(project.name) + " · 交付目標"}</small><strong>${e(goal)}</strong><span>${e(getProjectSnapshot(project).state)}${progress}</span></button>
       </article>`);
       bandBottom = Math.max(bandBottom, cursor + 64);
       if (projectIndex % columns === columns - 1) bandStart = bandBottom;
@@ -291,7 +286,8 @@
     if (!uiState.focusProjectId) return;
     const goal = mapStage.querySelector(`.d-map-goal[data-map-project="${CSS.escape(projectId)}"]`);
     if (goal) {
-      uiState.x = mapViewport.clientWidth / 2 - (parseFloat(goal.style.left) + 320) * uiState.scale;
+      const center = workspaceData[projectId].tasks.length ? 320 : goal.offsetWidth / 2;
+      uiState.x = mapViewport.clientWidth / 2 - (parseFloat(goal.style.left) + center) * uiState.scale;
       applyTransform();
     }
   };
@@ -1385,7 +1381,7 @@
   window.removeEventListener("popstate", oldRoute);
   window.addEventListener("popstate", routeFromLocation);
   document.querySelector(".map-legend").innerHTML = `<span>交付目標</span><span>→ 主要工作</span><span>→ 子工作</span><span><i class="chron-mark plan"></i>預計交付</span><span><i class="legend-mark current"></i>進行中的工作</span>`;
-  document.querySelector(".map-note p").textContent = "雙指或滾輪縮放，拖曳畫布移動。點工作名稱可查看進度，＋ 展開子工作。實線連接所屬工作，虛線連接交付日期。";
+  document.querySelector(".map-note p").textContent = "雙指或滾輪縮放，拖曳畫布移動。點工作名稱可查看進度，＋ 展開子工作。點目標上的交付日期可查看案件時間軸。";
   const lists = createRequirementLists({form, field, select, action, uid, record, normalize, artifactFields, withArtifacts, saved:alreadySaved, dialog});
   saveWorkspaceData(); routeFromLocation();
   // Explicit model API for regression checks; all mutations still go through the same functions.
